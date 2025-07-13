@@ -12,7 +12,6 @@ interface RabbitHoleSearchRequest {
     }>;
     concept?: string;
     followUpMode?: "expansive" | "focused";
-    provider?: string;
 }
 
 interface SearchResponse {
@@ -45,27 +44,6 @@ export function setupRabbitHoleRoutes(_runtime: any) {
         console.log('Running in development mode - Tavily client not initialized');
     }
 
-    router.get("/rabbitholes/providers", async (req: express.Request, res: express.Response) => {
-        try {
-            const providers = {
-                defaultProvider: openAIService.getDefaultProvider(),
-                availableProviders: openAIService.getAvailableProviders(),
-                providerConfigs: openAIService.getAvailableProviders().map(provider => ({
-                    provider,
-                    model: openAIService.getModelConfig(provider).model,
-                    available: openAIService.isProviderAvailable(provider)
-                }))
-            };
-            res.json(providers);
-        } catch (error) {
-            console.error("Error getting provider information:", error);
-            res.status(500).json({
-                error: "Failed to get provider information",
-                details: (error as Error).message,
-            });
-        }
-    });
-
     router.post("/rabbitholes/search", async (req: express.Request, res: express.Response) => {
         try {
             const {
@@ -73,7 +51,6 @@ export function setupRabbitHoleRoutes(_runtime: any) {
                 previousConversation,
                 concept,
                 followUpMode = "expansive",
-                provider,
             } = req.body as RabbitHoleSearchRequest;
 
             // Use mock data if in dev mode
@@ -123,11 +100,9 @@ One of the questions should be a question that is related to the search results,
                 },
             ];
 
-            const completion = (await openAIService.createChatCompletion(messages, provider)) as OpenAI.Chat.ChatCompletion;
+            const completion = (await openAIService.createChatCompletion(messages, "gemini")) as OpenAI.Chat.ChatCompletion;
             const response = completion.choices?.[0]?.message?.content ?? "";
 
-            console.log("Search results:", `${JSON.stringify(searchResults)}`);
-            console.log("AI response:", response);
             // Extract follow-up questions more precisely by looking for the section
             const followUpSection = response.split("Follow-up Questions:")[1];
             const followUpQuestions = followUpSection
