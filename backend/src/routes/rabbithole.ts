@@ -1,6 +1,7 @@
 import express from "express";
 import { tavily } from "@tavily/core";
 import { openAIService } from "../services/openaiService";
+import { mockDataService } from "../services/mockDataService";
 import OpenAI from "openai";
 
 interface RabbitHoleSearchRequest {
@@ -34,7 +35,15 @@ interface SearchResponse {
 
 export function setupRabbitHoleRoutes(_runtime: any) {
     const router = express.Router();
-    const tavilyClient = tavily({ apiKey: process.env.TAVILY_API_KEY });
+    const isDevMode = process.env.MODE === 'DEV';
+    
+    // Initialize Tavily client only if not in dev mode
+    let tavilyClient: any = null;
+    if (!isDevMode) {
+        tavilyClient = tavily({ apiKey: process.env.TAVILY_API_KEY });
+    } else {
+        console.log('Running in development mode - Tavily client not initialized');
+    }
 
     router.get("/rabbitholes/providers", async (req: express.Request, res: express.Response) => {
         try {
@@ -67,11 +76,18 @@ export function setupRabbitHoleRoutes(_runtime: any) {
                 provider,
             } = req.body as RabbitHoleSearchRequest;
 
-            const searchResults = await tavilyClient.search(query, {
-                searchDepth: "basic",
-                includeImages: true,
-                maxResults: 3,
-            });
+            // Use mock data if in dev mode
+            let searchResults;
+            if (mockDataService.isDevMode()) {
+                console.log("Using mock data for Tavily search");
+                searchResults = await mockDataService.mockTavilySearch(query);
+            } else {
+                searchResults = await tavilyClient.search(query, {
+                    searchDepth: "basic",
+                    includeImages: true,
+                    maxResults: 3,
+                });
+            }
 
             const conversationContext = previousConversation
                 ? previousConversation
