@@ -4,7 +4,6 @@ import axios from 'axios';
 import ReactFlow, { Node, Edge, MarkerType, Position } from 'reactflow';
 import dagre from 'dagre';
 import gsap from 'gsap';
-import { useNavigate } from 'react-router-dom';
 import RabbitFlow from './RabbitFlow';
 import MainNode from './nodes/MainNode';
 import '../styles/search.css';
@@ -251,7 +250,6 @@ const SearchView: React.FC = () => {
   const [conversationHistory, setConversationHistory] = useState<ConversationMessage[]>([]);
   const [currentConcept, setCurrentConcept] = useState<string>('');
   const activeRequestRef = useRef<{ [key: string]: AbortController | null }>({});
-  const navigate = useNavigate();
 
   const thothDeckRef = useRef<HTMLDivElement>(null);
   const anubisDeckRef = useRef<HTMLDivElement>(null);
