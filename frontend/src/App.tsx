@@ -1,6 +1,7 @@
 import React from 'react';
 import { createBrowserRouter, RouterProvider, Navigate } from 'react-router-dom';
 import { AuthProvider } from './contexts/AuthContext';
+import { ThemeProvider } from './contexts/ThemeContext';
 import { HomePage, ExplorePage, LoginPage } from './pages';
 import ProtectedRoute from './components/ProtectedRoute';
 import './index.css';
@@ -34,11 +35,13 @@ const router = createBrowserRouter([
 
 function App() {
   return (
-    <AuthProvider>
-      <div className="min-h-screen bg-background">
-        <RouterProvider router={router} />
-      </div>
-    </AuthProvider>
+    <ThemeProvider>
+      <AuthProvider>
+        <div className="min-h-screen bg-background-light dark:bg-background transition-colors duration-300">
+          <RouterProvider router={router} />
+        </div>
+      </AuthProvider>
+    </ThemeProvider>
   );
 }
 

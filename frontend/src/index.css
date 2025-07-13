@@ -3,5 +3,5 @@
 @tailwind utilities;
 
 body {
-  @apply bg-background text-white;
+  @apply bg-background-light dark:bg-background text-text-primary-light dark:text-text-primary transition-colors duration-300;
 } 

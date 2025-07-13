@@ -3,6 +3,8 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import ReactFlow, { Node, Edge, MarkerType, Position } from 'reactflow';
 import dagre from 'dagre';
 import { useAuth } from '../contexts/AuthContext';
+import { useTheme } from '../contexts/ThemeContext';
+import ThemeToggle from '../components/ThemeToggle';
 import RabbitFlow from '../components/RabbitFlow';
 import MainNode from '../components/nodes/MainNode';
 import { searchRabbitHole } from '../services/api';
@@ -368,11 +370,11 @@ const ExplorePage: React.FC = () => {
   }
 
   return (
-    <div className="min-h-screen bg-background relative">
+    <div className="min-h-screen bg-background-light dark:bg-background relative transition-colors duration-300">
       {/* Back to Home Button */}
       <button
         onClick={handleBackToHome}
-        className="fixed top-6 left-6 z-50 flex items-center gap-2 px-4 py-2 bg-[#111111] border border-white/10 rounded-full text-white/70 hover:text-white/90 hover:bg-white/5 transition-all duration-300 group"
+        className="fixed top-6 left-6 z-50 flex items-center gap-2 px-4 py-2 bg-white dark:bg-[#111111] border border-gray-300 dark:border-white/10 rounded-full text-gray-600 dark:text-white/70 hover:text-gray-800 dark:hover:text-white/90 hover:bg-gray-100 dark:hover:bg-white/5 transition-all duration-300 group shadow-lg"
       >
         <svg className="w-5 h-5 group-hover:-translate-x-1 transition-transform duration-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 19l-7-7 7-7" />
@@ -382,12 +384,13 @@ const ExplorePage: React.FC = () => {
 
       {/* User Menu */}
       <div className="fixed top-6 left-1/2 transform -translate-x-1/2 z-50 flex items-center space-x-4">
-        <div className="text-white/70 text-sm">
-          Welcome, <span className="text-white/90 font-medium">{username}</span>
+        <div className="text-text-secondary-light dark:text-white/70 text-sm">
+          Welcome, <span className="text-text-primary-light dark:text-white/90 font-medium">{username}</span>
         </div>
+        <ThemeToggle />
         <button
           onClick={handleLogout}
-          className="px-3 py-1 bg-red-900/20 border border-red-800/30 rounded-md text-red-400 text-sm hover:bg-red-900/30 transition-colors"
+          className="px-3 py-1 bg-red-100 dark:bg-red-900/20 border border-red-300 dark:border-red-800/30 rounded-md text-red-600 dark:text-red-400 text-sm hover:bg-red-200 dark:hover:bg-red-900/30 transition-colors"
         >
           Logout
         </button>
@@ -403,7 +406,7 @@ const ExplorePage: React.FC = () => {
         <div className="relative">
           <div className="absolute -inset-2 bg-gradient-to-r from-[#2c2c2c] via-[#3c3c3c] to-[#2c2c2c] rounded-full opacity-0 group-hover:opacity-30 transition duration-500 blur-sm animate-gradient-xy"></div>
           <svg
-            className="w-8 h-8 text-white/70 hover:text-white/90 transition-colors duration-300"
+            className="w-8 h-8 text-gray-600 dark:text-white/70 hover:text-gray-800 dark:hover:text-white/90 transition-colors duration-300"
             viewBox="0 0 24 24"
             fill="currentColor"
           >
