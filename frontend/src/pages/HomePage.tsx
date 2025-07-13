@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import gsap from 'gsap';
+import { useAuth } from '../contexts/AuthContext';
 import { searchRabbitHole } from '../services/api';
 import '../styles/search.css';
 
@@ -159,6 +160,7 @@ const HomePage: React.FC = () => {
   const [query, setQuery] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const navigate = useNavigate();
+  const { logout, username } = useAuth();
 
   const thothDeckRef = useRef<HTMLDivElement>(null);
   const anubisDeckRef = useRef<HTMLDivElement>(null);
@@ -207,8 +209,26 @@ const HomePage: React.FC = () => {
     }
   };
 
+  const handleLogout = () => {
+    logout();
+    navigate('/login');
+  };
+
   return (
     <div className="flex flex-col items-center justify-center min-h-screen bg-[#0A0A0A]">
+      {/* User Menu */}
+      <div className="fixed top-6 left-6 z-50 flex items-center space-x-4">
+        <div className="text-white/70 text-sm">
+          Welcome, <span className="text-white/90 font-medium">{username}</span>
+        </div>
+        <button
+          onClick={handleLogout}
+          className="px-3 py-1 bg-red-900/20 border border-red-800/30 rounded-md text-red-400 text-sm hover:bg-red-900/30 transition-colors"
+        >
+          Logout
+        </button>
+      </div>
+
       <a
         href="https://github.com/AsyncFuncAI/rabbitholes"
         target="_blank"

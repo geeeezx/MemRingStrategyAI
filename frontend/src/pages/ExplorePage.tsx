@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import ReactFlow, { Node, Edge, MarkerType, Position } from 'reactflow';
 import dagre from 'dagre';
+import { useAuth } from '../contexts/AuthContext';
 import RabbitFlow from '../components/RabbitFlow';
 import MainNode from '../components/nodes/MainNode';
 import { searchRabbitHole } from '../services/api';
@@ -90,6 +91,7 @@ const nodeTypes = {
 const ExplorePage: React.FC = () => {
   const location = useLocation();
   const navigate = useNavigate();
+  const { logout, username } = useAuth();
   const [nodes, setNodes] = useState<Node[]>([]);
   const [edges, setEdges] = useState<Edge[]>([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -104,7 +106,7 @@ const ExplorePage: React.FC = () => {
   useEffect(() => {
     // If no search result, redirect to home
     if (!searchResult) {
-      navigate('/');
+      navigate('/home');
       return;
     }
 
@@ -353,7 +355,12 @@ const ExplorePage: React.FC = () => {
   };
 
   const handleBackToHome = () => {
-    navigate('/');
+    navigate('/home');
+  };
+
+  const handleLogout = () => {
+    logout();
+    navigate('/login');
   };
 
   if (!searchResult) {
@@ -372,6 +379,19 @@ const ExplorePage: React.FC = () => {
         </svg>
         <span className="text-sm font-light">Back to Search</span>
       </button>
+
+      {/* User Menu */}
+      <div className="fixed top-6 left-1/2 transform -translate-x-1/2 z-50 flex items-center space-x-4">
+        <div className="text-white/70 text-sm">
+          Welcome, <span className="text-white/90 font-medium">{username}</span>
+        </div>
+        <button
+          onClick={handleLogout}
+          className="px-3 py-1 bg-red-900/20 border border-red-800/30 rounded-md text-red-400 text-sm hover:bg-red-900/30 transition-colors"
+        >
+          Logout
+        </button>
+      </div>
 
       {/* GitHub Link */}
       <a
