@@ -1,5 +1,6 @@
 import OpenAI from "openai";
 import dotenv from 'dotenv';
+import { mockDataService } from './mockDataService';
 
 dotenv.config();
 
@@ -27,10 +28,28 @@ export class OpenAIService {
         const googleApiKey = process.env.GOOGLE_AI_API_KEY;
         const openaiApiKey = process.env.OPENAI_API_KEY;
         const defaultProvider = process.env.DEFAULT_AI_PROVIDER || 'openai';
+        const isDevMode = process.env.MODE === 'DEV';
 
         this.clients = new Map();
         this.modelConfigs = {};
         this.defaultProvider = defaultProvider;
+
+        // In dev mode, create mock configurations to avoid API key requirements
+        if (isDevMode) {
+            console.log('Running in development mode - using mock AI configurations');
+            this.modelConfigs.openai = {
+                baseURL: "https://api.openai.com/v1",
+                apiKey: "mock-openai-key",
+                model: "gpt-4o",
+            };
+            this.modelConfigs.gemini = {
+                baseURL: "https://generativelanguage.googleapis.com/v1beta",
+                apiKey: "mock-gemini-key",
+                model: "gemini-2.0-flash",
+            };
+            this.defaultProvider = 'gemini'; // Default to gemini in dev mode
+            return;
+        }
 
         // Configure OpenAI if API key is provided
         if (openaiApiKey) {
@@ -95,6 +114,15 @@ export class OpenAIService {
         provider?: string,
         options: Partial<OpenAI.Chat.ChatCompletionCreateParams> = {}
     ) {
+        // Use mock data if in dev mode
+        if (mockDataService.isDevMode()) {
+            console.log("Using mock data for OpenAI completion");
+            return await mockDataService.mockOpenAICompletion(
+                messages as Array<{ role: string; content: string; }>,
+                provider || this.defaultProvider
+            );
+        }
+
         const selectedProvider = provider || this.defaultProvider;
         const client = this.getClient(selectedProvider);
         const config = this.modelConfigs[selectedProvider];
