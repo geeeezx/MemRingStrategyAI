@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import ReactFlow, { Node, Edge, MarkerType, Position } from 'reactflow';
+import { Node, Edge, MarkerType, Position } from 'reactflow';
 import dagre from 'dagre';
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
@@ -94,9 +94,9 @@ const ExplorePage: React.FC = () => {
   const location = useLocation();
   const navigate = useNavigate();
   const { logout, username } = useAuth();
+  const { theme } = useTheme();
   const [nodes, setNodes] = useState<Node[]>([]);
   const [edges, setEdges] = useState<Edge[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
   const [conversationHistory, setConversationHistory] = useState<ConversationMessage[]>([]);
   const [currentConcept, setCurrentConcept] = useState<string>('');
   const activeRequestRef = useRef<{ [key: string]: AbortController | null }>({});
@@ -127,7 +127,7 @@ const ExplorePage: React.FC = () => {
       style: {
         width: nodeWidth,
         minHeight: '500px',
-        background: '#1a1a1a',
+        background: theme === 'dark' ? '#1a1a1a' : '#ffffff',
         opacity: 1
       }
     };
@@ -145,9 +145,9 @@ const ExplorePage: React.FC = () => {
       position: { x: 0, y: 0 },
       style: {
         width: questionNodeWidth,
-        background: '#1a1a1a',
-        color: '#fff',
-        border: '1px solid #333',
+        background: theme === 'dark' ? '#1a1a1a' : '#ffffff',
+        color: theme === 'dark' ? '#fff' : '#000',
+        border: theme === 'dark' ? '1px solid #333' : '1px solid #e5e5e5',
         borderRadius: '8px',
         fontSize: '14px',
         textAlign: 'left',
@@ -161,14 +161,14 @@ const ExplorePage: React.FC = () => {
       source: 'main',
       target: `question-${index}`,
       style: { 
-        stroke: 'rgba(248, 248, 248, 0.8)', 
+        stroke: theme === 'dark' ? 'rgba(248, 248, 248, 0.8)' : 'rgba(0, 0, 0, 0.3)', 
         strokeWidth: 1.5
       },
       type: 'smoothstep',
       animated: true,
       markerEnd: {
         type: MarkerType.ArrowClosed,
-        color: 'rgba(248, 248, 248, 0.8)'
+        color: theme === 'dark' ? 'rgba(248, 248, 248, 0.8)' : 'rgba(0, 0, 0, 0.3)'
       }
     }));
 
@@ -180,7 +180,7 @@ const ExplorePage: React.FC = () => {
     setNodes(layoutedNodes);
     setEdges(layoutedEdges);
     setCurrentConcept(searchResult.contextualQuery || initialQuery);
-  }, [searchResult, initialQuery, navigate]);
+  }, [searchResult, initialQuery, navigate, theme]);
 
   useEffect(() => {
     return () => {
@@ -207,7 +207,6 @@ const ExplorePage: React.FC = () => {
     activeRequestRef.current[node.id] = abortController;
 
     const questionText = node.data.label;
-    setIsLoading(true);
 
     try {
       const lastMainNode = nodes.find(n => n.type === 'mainNode');
@@ -257,7 +256,7 @@ const ExplorePage: React.FC = () => {
                   ...n.style,
                   width: nodeWidth,
                   minHeight: '500px',
-                  background: '#1a1a1a',
+                  background: theme === 'dark' ? '#1a1a1a' : '#ffffff',
                   opacity: 1,
                   cursor: 'default' 
                 },
@@ -288,9 +287,9 @@ const ExplorePage: React.FC = () => {
               position: { x: 0, y: 0 },
               style: {
                 width: questionNodeWidth,
-                background: '#1a1a1a',
-                color: '#fff',
-                border: '1px solid #333',
+                background: theme === 'dark' ? '#1a1a1a' : '#ffffff',
+                color: theme === 'dark' ? '#fff' : '#000',
+                border: theme === 'dark' ? '1px solid #333' : '1px solid #e5e5e5',
                 borderRadius: '8px',
                 fontSize: '14px',
                 textAlign: 'left',
@@ -306,14 +305,14 @@ const ExplorePage: React.FC = () => {
             source: node.id,
             target: followUpNode.id,
             style: {
-              stroke: 'rgba(248, 248, 248, 0.8)',
+              stroke: theme === 'dark' ? 'rgba(248, 248, 248, 0.8)' : 'rgba(0, 0, 0, 0.3)',
               strokeWidth: 1.5
             },
             type: 'smoothstep',
             animated: true,
             markerEnd: {
               type: MarkerType.ArrowClosed,
-              color: 'rgba(248, 248, 248, 0.8)'
+              color: theme === 'dark' ? 'rgba(248, 248, 248, 0.8)' : 'rgba(0, 0, 0, 0.3)'
             }
           }));
 
@@ -351,7 +350,6 @@ const ExplorePage: React.FC = () => {
     } finally {
       if (activeRequestRef.current[node.id] === abortController) {
         activeRequestRef.current[node.id] = null;
-        setIsLoading(false);
       }
     }
   };
@@ -370,7 +368,7 @@ const ExplorePage: React.FC = () => {
   }
 
   return (
-    <div className="min-h-screen bg-background-light dark:bg-background relative transition-colors duration-300">
+    <div className="min-h-screen bg-light-background dark:bg-dark-background relative transition-colors duration-300">
       {/* Back to Home Button */}
       <button
         onClick={handleBackToHome}
@@ -384,8 +382,8 @@ const ExplorePage: React.FC = () => {
 
       {/* User Menu */}
       <div className="fixed top-6 left-1/2 transform -translate-x-1/2 z-50 flex items-center space-x-4">
-        <div className="text-text-secondary-light dark:text-white/70 text-sm">
-          Welcome, <span className="text-text-primary-light dark:text-white/90 font-medium">{username}</span>
+        <div className="text-light-text-secondary dark:text-dark-text-secondary text-sm">
+          Welcome, <span className="text-light-text-primary dark:text-dark-text-primary font-medium">{username}</span>
         </div>
         <ThemeToggle />
         <button
