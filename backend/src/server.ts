@@ -2,6 +2,8 @@ import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
 import path from 'path';
+import swaggerUi from 'swagger-ui-express';
+import { specs } from './config/swagger';
 import { setupRabbitHoleRoutes } from './routes/rabbithole';
 
 dotenv.config();
@@ -15,6 +17,13 @@ app.use(cors({
   allowedHeaders: ['Content-Type']
 }));
 app.use(express.json());
+
+// Swagger API Documentation
+app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(specs, {
+  explorer: true,
+  customCss: '.swagger-ui .topbar { display: none }',
+  customSiteTitle: 'MemRing Strategy AI API Documentation'
+}));
 
 // Add health check endpoint
 app.get('/api/health', (req, res) => {
@@ -38,4 +47,5 @@ app.use((err: Error, req: express.Request, res: express.Response, next: express.
 
 app.listen(port, () => {
   console.log(`Server is running on port ${port}`);
+  console.log(`API Documentation available at http://localhost:${port}/api-docs`);
 }); 
