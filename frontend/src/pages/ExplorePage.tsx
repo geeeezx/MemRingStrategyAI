@@ -1,7 +1,10 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import ReactFlow, { Node, Edge, MarkerType, Position } from 'reactflow';
+import { Node, Edge, MarkerType, Position } from 'reactflow';
 import dagre from 'dagre';
+import { useAuth } from '../contexts/AuthContext';
+import { useTheme } from '../contexts/ThemeContext';
+import ThemeToggle from '../components/ThemeToggle';
 import RabbitFlow from '../components/RabbitFlow';
 import MainNode from '../components/nodes/MainNode';
 import { searchRabbitHole } from '../services/api';
@@ -90,9 +93,10 @@ const nodeTypes = {
 const ExplorePage: React.FC = () => {
   const location = useLocation();
   const navigate = useNavigate();
+  const { logout, username } = useAuth();
+  const { theme } = useTheme();
   const [nodes, setNodes] = useState<Node[]>([]);
   const [edges, setEdges] = useState<Edge[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
   const [conversationHistory, setConversationHistory] = useState<ConversationMessage[]>([]);
   const [currentConcept, setCurrentConcept] = useState<string>('');
   const activeRequestRef = useRef<{ [key: string]: AbortController | null }>({});
@@ -104,7 +108,7 @@ const ExplorePage: React.FC = () => {
   useEffect(() => {
     // If no search result, redirect to home
     if (!searchResult) {
-      navigate('/');
+      navigate('/home');
       return;
     }
 
@@ -123,7 +127,7 @@ const ExplorePage: React.FC = () => {
       style: {
         width: nodeWidth,
         minHeight: '500px',
-        background: '#1a1a1a',
+        background: theme === 'dark' ? '#1a1a1a' : '#ffffff',
         opacity: 1
       }
     };
@@ -141,9 +145,9 @@ const ExplorePage: React.FC = () => {
       position: { x: 0, y: 0 },
       style: {
         width: questionNodeWidth,
-        background: '#1a1a1a',
-        color: '#fff',
-        border: '1px solid #333',
+        background: theme === 'dark' ? '#1a1a1a' : '#ffffff',
+        color: theme === 'dark' ? '#fff' : '#000',
+        border: theme === 'dark' ? '1px solid #333' : '1px solid #e5e5e5',
         borderRadius: '8px',
         fontSize: '14px',
         textAlign: 'left',
@@ -157,14 +161,14 @@ const ExplorePage: React.FC = () => {
       source: 'main',
       target: `question-${index}`,
       style: { 
-        stroke: 'rgba(248, 248, 248, 0.8)', 
+        stroke: theme === 'dark' ? 'rgba(248, 248, 248, 0.8)' : 'rgba(0, 0, 0, 0.3)', 
         strokeWidth: 1.5
       },
       type: 'smoothstep',
       animated: true,
       markerEnd: {
         type: MarkerType.ArrowClosed,
-        color: 'rgba(248, 248, 248, 0.8)'
+        color: theme === 'dark' ? 'rgba(248, 248, 248, 0.8)' : 'rgba(0, 0, 0, 0.3)'
       }
     }));
 
@@ -177,6 +181,21 @@ const ExplorePage: React.FC = () => {
     setEdges(layoutedEdges);
     setCurrentConcept(searchResult.contextualQuery || initialQuery);
   }, [searchResult, initialQuery, navigate]);
+
+  // Update existing nodes' styles when theme changes
+  useEffect(() => {
+    setNodes(prevNodes => 
+      prevNodes.map(node => ({
+        ...node,
+        style: {
+          ...node.style,
+          background: theme === 'dark' ? '#1a1a1a' : '#ffffff',
+          color: theme === 'dark' ? '#fff' : '#000',
+          border: theme === 'dark' ? '1px solid #333' : '1px solid #e5e5e5',
+        }
+      }))
+    );
+  }, [theme]);
 
   useEffect(() => {
     return () => {
@@ -203,7 +222,6 @@ const ExplorePage: React.FC = () => {
     activeRequestRef.current[node.id] = abortController;
 
     const questionText = node.data.label;
-    setIsLoading(true);
 
     try {
       const lastMainNode = nodes.find(n => n.type === 'mainNode');
@@ -253,7 +271,7 @@ const ExplorePage: React.FC = () => {
                   ...n.style,
                   width: nodeWidth,
                   minHeight: '500px',
-                  background: '#1a1a1a',
+                  background: theme === 'dark' ? '#1a1a1a' : '#ffffff',
                   opacity: 1,
                   cursor: 'default' 
                 },
@@ -284,9 +302,9 @@ const ExplorePage: React.FC = () => {
               position: { x: 0, y: 0 },
               style: {
                 width: questionNodeWidth,
-                background: '#1a1a1a',
-                color: '#fff',
-                border: '1px solid #333',
+                background: theme === 'dark' ? '#1a1a1a' : '#ffffff',
+                color: theme === 'dark' ? '#fff' : '#000',
+                border: theme === 'dark' ? '1px solid #333' : '1px solid #e5e5e5',
                 borderRadius: '8px',
                 fontSize: '14px',
                 textAlign: 'left',
@@ -302,14 +320,14 @@ const ExplorePage: React.FC = () => {
             source: node.id,
             target: followUpNode.id,
             style: {
-              stroke: 'rgba(248, 248, 248, 0.8)',
+              stroke: theme === 'dark' ? 'rgba(248, 248, 248, 0.8)' : 'rgba(0, 0, 0, 0.3)',
               strokeWidth: 1.5
             },
             type: 'smoothstep',
             animated: true,
             markerEnd: {
               type: MarkerType.ArrowClosed,
-              color: 'rgba(248, 248, 248, 0.8)'
+              color: theme === 'dark' ? 'rgba(248, 248, 248, 0.8)' : 'rgba(0, 0, 0, 0.3)'
             }
           }));
 
@@ -347,13 +365,17 @@ const ExplorePage: React.FC = () => {
     } finally {
       if (activeRequestRef.current[node.id] === abortController) {
         activeRequestRef.current[node.id] = null;
-        setIsLoading(false);
       }
     }
   };
 
   const handleBackToHome = () => {
-    navigate('/');
+    navigate('/home');
+  };
+
+  const handleLogout = () => {
+    logout();
+    navigate('/login');
   };
 
   if (!searchResult) {
@@ -361,17 +383,31 @@ const ExplorePage: React.FC = () => {
   }
 
   return (
-    <div className="min-h-screen bg-background relative">
+    <div className="min-h-screen bg-light-background dark:bg-dark-background relative transition-colors duration-300">
       {/* Back to Home Button */}
       <button
         onClick={handleBackToHome}
-        className="fixed top-6 left-6 z-50 flex items-center gap-2 px-4 py-2 bg-[#111111] border border-white/10 rounded-full text-white/70 hover:text-white/90 hover:bg-white/5 transition-all duration-300 group"
+        className="fixed top-6 left-6 z-50 flex items-center gap-2 px-4 py-2 bg-white dark:bg-[#111111] border border-gray-300 dark:border-white/10 rounded-full text-gray-600 dark:text-white/70 hover:text-gray-800 dark:hover:text-white/90 hover:bg-gray-100 dark:hover:bg-white/5 transition-all duration-300 group shadow-lg"
       >
         <svg className="w-5 h-5 group-hover:-translate-x-1 transition-transform duration-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 19l-7-7 7-7" />
         </svg>
         <span className="text-sm font-light">Back to Search</span>
       </button>
+
+      {/* User Menu */}
+      <div className="fixed top-6 left-1/2 transform -translate-x-1/2 z-50 flex items-center space-x-4">
+        <div className="text-light-text-secondary dark:text-dark-text-secondary text-sm">
+          Welcome, <span className="text-light-text-primary dark:text-dark-text-primary font-medium">{username}</span>
+        </div>
+        <ThemeToggle />
+        <button
+          onClick={handleLogout}
+          className="px-3 py-1 bg-red-100 dark:bg-red-900/20 border border-red-300 dark:border-red-800/30 rounded-md text-red-600 dark:text-red-400 text-sm hover:bg-red-200 dark:hover:bg-red-900/30 transition-colors"
+        >
+          Logout
+        </button>
+      </div>
 
       {/* GitHub Link */}
       <a
@@ -383,7 +419,7 @@ const ExplorePage: React.FC = () => {
         <div className="relative">
           <div className="absolute -inset-2 bg-gradient-to-r from-[#2c2c2c] via-[#3c3c3c] to-[#2c2c2c] rounded-full opacity-0 group-hover:opacity-30 transition duration-500 blur-sm animate-gradient-xy"></div>
           <svg
-            className="w-8 h-8 text-white/70 hover:text-white/90 transition-colors duration-300"
+            className="w-8 h-8 text-gray-600 dark:text-white/70 hover:text-gray-800 dark:hover:text-white/90 transition-colors duration-300"
             viewBox="0 0 24 24"
             fill="currentColor"
           >

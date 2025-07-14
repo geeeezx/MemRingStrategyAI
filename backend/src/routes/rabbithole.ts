@@ -2,6 +2,7 @@ import express from "express";
 import { tavily } from "@tavily/core";
 import { openAIService } from "../services/openaiService";
 import { dbService } from "../services/dbService";
+import { mockDataService } from "../services/mockDataService";
 import OpenAI from "openai";
 
 interface RabbitHoleSearchRequest {
@@ -11,6 +12,14 @@ interface RabbitHoleSearchRequest {
     nodeId: string;
     concept?: string;
     followUpMode?: "expansive" | "focused";
+    provider?: string;
+}
+
+interface AddNodeRequest {
+    userId: number;
+    memoId: number;
+    parentId: string;
+    question: string;
     provider?: string;
 }
 
@@ -63,7 +72,15 @@ interface AddNodeResponse {
 
 export function setupRabbitHoleRoutes(_runtime: any) {
     const router = express.Router();
-    const tavilyClient = tavily({ apiKey: process.env.TAVILY_API_KEY });
+    const isDevMode = process.env.MODE === 'DEV';
+    
+    // Initialize Tavily client only if not in dev mode
+    let tavilyClient: any = null;
+    if (!isDevMode) {
+        tavilyClient = tavily({ apiKey: process.env.TAVILY_API_KEY });
+    } else {
+        console.log('Running in development mode - Tavily client not initialized');
+    }
 
     /**
      * @swagger
@@ -238,7 +255,6 @@ export function setupRabbitHoleRoutes(_runtime: any) {
                 nodeId,
                 concept,
                 followUpMode = "expansive",
-                provider,
             } = req.body as RabbitHoleSearchRequest;
 
             // Validate required parameters
@@ -252,11 +268,18 @@ export function setupRabbitHoleRoutes(_runtime: any) {
             const conversationPath = await dbService.getConversationPath(memoId, userId, nodeId);
 
             // Perform search
-            const searchResults = await tavilyClient.search(query, {
-                searchDepth: "basic",
-                includeImages: true,
-                maxResults: 3,
-            });
+            // Use mock data if in dev mode
+            let searchResults;
+            if (mockDataService.isDevMode()) {
+                console.log("Using mock data for Tavily search");
+                searchResults = await mockDataService.mockTavilySearch(query);
+            } else {
+                searchResults = await tavilyClient.search(query, {
+                    searchDepth: "basic",
+                    includeImages: true,
+                    maxResults: 3,
+                });
+            }
 
             // Build conversation context
             const conversationContext = conversationPath
@@ -287,10 +310,10 @@ One of the questions should be a question that is related to the search results,
                 },
             ];
 
-            const completion = (await openAIService.createChatCompletion(messages, provider)) as OpenAI.Chat.ChatCompletion;
+            const completion = (await openAIService.createChatCompletion(messages, "gemini")) as OpenAI.Chat.ChatCompletion;
             const response = completion.choices?.[0]?.message?.content ?? "";
 
-            // Extract follow-up questions
+            // Extract follow-up questions more precisely by looking for the section
             const followUpSection = response.split("Follow-up Questions:")[1];
             const followUpQuestions = followUpSection
                 ? followUpSection

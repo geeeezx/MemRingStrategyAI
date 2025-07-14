@@ -1,5 +1,5 @@
 import { useEffect, useCallback, useState } from "react"
-import gsap from "gsap"
+import { gsap } from "gsap"
 import { Modal } from "./Modal"
 
 interface BounceCardsProps {

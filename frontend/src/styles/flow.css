@@ -6,13 +6,38 @@
   background: #1a1a1a;
 }
 
+.dark .custom-scrollbar::-webkit-scrollbar-track {
+  background: #1a1a1a;
+}
+
 .custom-scrollbar::-webkit-scrollbar-thumb {
   background: #333;
   border-radius: 4px;
 }
 
+.dark .custom-scrollbar::-webkit-scrollbar-thumb {
+  background: #333;
+}
+
 .custom-scrollbar::-webkit-scrollbar-thumb:hover {
   background: #444;
+}
+
+.dark .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: #444;
+}
+
+/* Light theme scrollbar */
+:not(.dark) .custom-scrollbar::-webkit-scrollbar-track {
+  background: #f8f9fa;
+}
+
+:not(.dark) .custom-scrollbar::-webkit-scrollbar-thumb {
+  background: #ccc;
+}
+
+:not(.dark) .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: #aaa;
 }
 
 .prose-invert h4 {
@@ -50,8 +75,8 @@
   scroll-behavior: smooth;
 }
 
-/* Dark theme for ReactFlow controls */
-.react-flow__controls button {
+/* Theme-aware ReactFlow controls */
+.dark .react-flow__controls button {
   background-color: #111111 !important;
   color: rgba(255, 255, 255, 0.8) !important;
   border: 1px solid #333333 !important;
@@ -59,46 +84,99 @@
   transition: all 0.2s ease;
 }
 
-.react-flow__controls button:hover {
+.dark .react-flow__controls button:hover {
   background-color: #222222 !important;
   color: rgba(255, 255, 255, 1) !important;
 }
 
-.react-flow__controls button svg {
+.dark .react-flow__controls button svg {
   fill: rgba(255, 255, 255, 0.8) !important;
   transform: scale(0.9);
 }
 
-.react-flow__controls button:hover svg {
+.dark .react-flow__controls button:hover svg {
   fill: rgba(255, 255, 255, 1) !important;
 }
 
-.react-flow__controls {
+.dark .react-flow__controls {
   box-shadow: 0 0 20px rgba(0, 0, 0, 0.3) !important;
 }
 
-/* Dark theme for edges */
-.react-flow__edge-path {
+/* Light theme controls */
+:not(.dark) .react-flow__controls button {
+  background-color: #ffffff !important;
+  color: rgba(0, 0, 0, 0.8) !important;
+  border: 1px solid #e5e5e5 !important;
+  border-radius: 4px !important;
+  transition: all 0.2s ease;
+}
+
+:not(.dark) .react-flow__controls button:hover {
+  background-color: #f8f9fa !important;
+  color: rgba(0, 0, 0, 1) !important;
+}
+
+:not(.dark) .react-flow__controls button svg {
+  fill: rgba(0, 0, 0, 0.8) !important;
+  transform: scale(0.9);
+}
+
+:not(.dark) .react-flow__controls button:hover svg {
+  fill: rgba(0, 0, 0, 1) !important;
+}
+
+:not(.dark) .react-flow__controls {
+  box-shadow: 0 0 20px rgba(0, 0, 0, 0.1) !important;
+}
+
+/* Theme-aware edges */
+.dark .react-flow__edge-path {
   stroke: rgba(255, 255, 255, 0.3) !important;
 }
 
-.react-flow__edge.selected .react-flow__edge-path {
+.dark .react-flow__edge.selected .react-flow__edge-path {
   stroke: rgba(255, 255, 255, 0.8) !important;
 }
 
-/* Dark theme for minimap */
-.react-flow__minimap {
+/* Light theme edges */
+:not(.dark) .react-flow__edge-path {
+  stroke: rgba(0, 0, 0, 0.3) !important;
+}
+
+:not(.dark) .react-flow__edge.selected .react-flow__edge-path {
+  stroke: rgba(0, 0, 0, 0.8) !important;
+}
+
+/* Theme-aware minimap */
+.dark .react-flow__minimap {
   background-color: #111111 !important;
   border: 1px solid #333333 !important;
   border-radius: 4px !important;
   box-shadow: 0 0 20px rgba(0, 0, 0, 0.3) !important;
 }
 
-.react-flow__minimap-mask {
+.dark .react-flow__minimap-mask {
   fill: rgba(0, 0, 0, 0.7) !important;
 }
 
-.react-flow__minimap-node {
+.dark .react-flow__minimap-node {
   fill: #666666 !important;
+  stroke: none !important;
+}
+
+/* Light theme minimap */
+:not(.dark) .react-flow__minimap {
+  background-color: #ffffff !important;
+  border: 1px solid #e5e5e5 !important;
+  border-radius: 4px !important;
+  box-shadow: 0 0 20px rgba(0, 0, 0, 0.1) !important;
+}
+
+:not(.dark) .react-flow__minimap-mask {
+  fill: rgba(255, 255, 255, 0.7) !important;
+}
+
+:not(.dark) .react-flow__minimap-node {
+  fill: #cccccc !important;
   stroke: none !important;
 } 
