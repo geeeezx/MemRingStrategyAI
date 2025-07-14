@@ -180,7 +180,22 @@ const ExplorePage: React.FC = () => {
     setNodes(layoutedNodes);
     setEdges(layoutedEdges);
     setCurrentConcept(searchResult.contextualQuery || initialQuery);
-  }, [searchResult, initialQuery, navigate, theme]);
+  }, [searchResult, initialQuery, navigate]);
+
+  // Update existing nodes' styles when theme changes
+  useEffect(() => {
+    setNodes(prevNodes => 
+      prevNodes.map(node => ({
+        ...node,
+        style: {
+          ...node.style,
+          background: theme === 'dark' ? '#1a1a1a' : '#ffffff',
+          color: theme === 'dark' ? '#fff' : '#000',
+          border: theme === 'dark' ? '1px solid #333' : '1px solid #e5e5e5',
+        }
+      }))
+    );
+  }, [theme]);
 
   useEffect(() => {
     return () => {
