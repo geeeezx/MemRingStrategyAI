@@ -6,6 +6,7 @@ import dagre from 'dagre';
 import gsap from 'gsap';
 import RabbitFlow from './RabbitFlow';
 import MainNode from './nodes/MainNode';
+import FollowUpInputNode from './nodes/FollowUpInputNode';
 import '../styles/search.css';
 import { searchRabbitHole } from '../services/api';
 
@@ -88,6 +89,7 @@ interface ConversationMessage {
 
 const nodeTypes = {
   mainNode: MainNode,
+  followUpInputNode: FollowUpInputNode,
 };
 
 const useDeckHoverAnimation = (deckRef: React.RefObject<HTMLDivElement>) => {
@@ -282,6 +284,69 @@ const SearchView: React.FC = () => {
     };
   }, []);
 
+  const handleAskFollowUp = (nodeId: string) => {
+    // Create a follow-up input node
+    const followUpNodeId = `followup-input-${nodeId}-${Date.now()}`;
+    
+    // Find the parent node to position the input node relative to it
+    const parentNode = nodes.find(n => n.id === nodeId);
+    const parentPosition = parentNode?.position || { x: 0, y: 0 };
+    
+    const followUpNode: Node = {
+      id: followUpNodeId,
+      type: 'followUpInputNode',
+      data: {
+        parentNodeId: nodeId,
+        onSubmit: (response: any) => {
+          // Handle the follow-up response
+          console.log('Follow-up response:', response);
+          // TODO: Create the actual result node from the response
+          // Remove the input node after successful submission
+          setNodes(prevNodes => prevNodes.filter(n => n.id !== followUpNodeId));
+          setEdges(prevEdges => prevEdges.filter(e => e.target !== followUpNodeId));
+        },
+        onCancel: () => {
+          // Remove the follow-up input node and its edge
+          setNodes(prevNodes => prevNodes.filter(n => n.id !== followUpNodeId));
+          setEdges(prevEdges => prevEdges.filter(e => e.target !== followUpNodeId));
+        }
+      },
+      position: { 
+        x: parentPosition.x + 600, // Position to the right of parent
+        y: parentPosition.y 
+      },
+      style: {
+        width: 400,
+        background: '#1a1a1a',
+        border: '1px solid #333',
+        borderRadius: '8px',
+        boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)'
+      }
+    };
+
+    // Add the follow-up input node
+    setNodes(prevNodes => [...prevNodes, followUpNode]);
+
+    // Create an edge from the parent node to the follow-up input node
+    const newEdge: Edge = {
+      id: `edge-${followUpNodeId}`,
+      source: nodeId,
+      target: followUpNodeId,
+      style: {
+        stroke: 'rgba(248, 248, 248, 0.8)',
+        strokeWidth: 1.5
+      },
+      type: 'smoothstep',
+      animated: true,
+      markerEnd: {
+        type: MarkerType.ArrowClosed,
+        color: 'rgba(248, 248, 248, 0.8)'
+      }
+    };
+
+    setEdges(prevEdges => [...prevEdges, newEdge]);
+  };
+
   const handleNodeClick = async (node: Node) => {
     if (!node.id.startsWith('question-') || node.data.isExpanded) return;
 
@@ -331,6 +396,9 @@ const SearchView: React.FC = () => {
 
       const response = await searchRabbitHole({
         query: questionText,
+        userId: 1, // Default user ID for now
+        memoId: 1, // Default memo ID for now
+        nodeId: node.id, // Use the node ID as the nodeId
         previousConversation: conversationHistory,
         concept: currentConcept,
         followUpMode: 'expansive'
@@ -356,7 +424,8 @@ const SearchView: React.FC = () => {
                   content: response.response,
                   images: response.images?.map((img: ImageData) => img.url),
                   sources: response.sources,
-                  isExpanded: true 
+                  isExpanded: true,
+                  onAskFollowUp: () => handleAskFollowUp(node.id)
                 }
               };
             }
@@ -480,6 +549,9 @@ const SearchView: React.FC = () => {
 
       const response = await searchRabbitHole({
         query,
+        userId: 1, // Default user ID for now
+        memoId: 1, // Default memo ID for now
+        nodeId: 'main', // Use 'main' as the node ID for the initial search
         previousConversation: conversationHistory,
         concept: currentConcept,
         followUpMode: 'expansive'
@@ -493,7 +565,8 @@ const SearchView: React.FC = () => {
           content: response.response,
           images: response.images?.map((img: ImageData) => img.url),
           sources: response.sources,
-          isExpanded: true 
+          isExpanded: true,
+          onAskFollowUp: () => handleAskFollowUp('main')
         }
       };
       const followUpNodes: Node[] = response.followUpQuestions.map((question: string, index: number) => ({

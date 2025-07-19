@@ -11,6 +11,9 @@ const api = axios.create({
 
 export const searchRabbitHole = async (params: {
     query: string;
+    userId: number;
+    memoId: number;
+    nodeId: string;
     previousConversation?: Array<{ user?: string; assistant?: string }>;
     concept?: string;
     followUpMode?: "expansive" | "focused";

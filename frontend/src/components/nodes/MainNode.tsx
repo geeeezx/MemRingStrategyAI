@@ -14,6 +14,7 @@ interface MainNodeData {
     url: string;
     thumbnail?: string;
   }>;
+  onAskFollowUp?: () => void; // Callback for follow-up button
 }
 
 const getFaviconUrl = (url: string): string => {
@@ -36,8 +37,14 @@ const transformStyles = [
 const MainNode = ({ data }: NodeProps<MainNodeData>) => {
   const { theme } = useTheme();
   
+  const handleAskFollowUp = () => {
+    if (data.onAskFollowUp) {
+      data.onAskFollowUp();
+    }
+  };
+  
   return (
-    <div className={`relative rounded-lg shadow-lg min-h-[500px] max-h-[550px] flex flex-col ${theme === 'dark' ? 'bg-[#1a1a1a] border-black' : 'bg-white border-gray-200'}`}>
+    <div className={`group relative rounded-lg shadow-lg min-h-[500px] max-h-[550px] flex flex-col ${theme === 'dark' ? 'bg-[#1a1a1a] border-black' : 'bg-white border-gray-200'}`}>
       <Handle type="target" position={Position.Left} className="w-2 h-2" />
       {data.images && data.images.length > 0 && (
         <div className={`flex-none p-6 ${theme === 'dark' ? 'bg-[#1a1a1a]' : 'bg-white'}`}>
@@ -122,6 +129,28 @@ const MainNode = ({ data }: NodeProps<MainNodeData>) => {
           </div>
         )}
       </div>
+
+      {/* ASK Follow up Button - Hidden by default, shows on hover */}
+      {data.content !== 'Loading...' && (
+        <div className={`absolute bottom-0 left-1/2 transform -translate-x-1/2 opacity-0 group-hover:opacity-100 transition-opacity duration-300 ease-in-out`}>
+          <button
+            onClick={handleAskFollowUp}
+            className={`px-4 py-2 rounded-full font-medium text-sm transition-all duration-200 shadow-lg hover:shadow-xl flex items-center space-x-2 transform translate-y-1/2 ${
+              theme === 'dark'
+                ? 'bg-white text-gray-800 hover:bg-gray-100 border border-gray-200'
+                : 'bg-white text-gray-800 hover:bg-gray-50 border border-gray-300'
+            }`}
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+            </svg>
+            <span>Ask Follow Up</span>
+          </button>
+        </div>
+      )}
+
+
+
       <Handle type="source" position={Position.Right} className="w-2 h-2" />
     </div>
   );
