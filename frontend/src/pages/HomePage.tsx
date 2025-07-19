@@ -197,7 +197,7 @@ const HomePage: React.FC = () => {
             value={query}
             onChange={(e: React.ChangeEvent<HTMLInputElement>) => setQuery(e.target.value)}
             onKeyPress={(e: React.KeyboardEvent) => e.key === 'Enter' && handleSearch()}
-            placeholder="Ask your question..."
+            placeholder="Create a new memo"
             disabled={isLoading}
           />
           {isLoading ? (

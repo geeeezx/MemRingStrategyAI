@@ -115,7 +115,6 @@ const PresetCard: React.FC<PresetCardProps> = ({ card, onClick, index = 0 }) => 
         <div className={`mt-4 text-xs text-center opacity-60 ${
           theme === 'dark' ? 'text-white/60' : 'text-gray-600'
         }`}>
-          Click to explore this topic
         </div>
       </div>
     </div>
