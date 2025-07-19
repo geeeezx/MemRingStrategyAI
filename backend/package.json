@@ -24,6 +24,7 @@
     "openai": "^4.26.0",
     "pg": "^8.16.3",
     "swagger-jsdoc": "^6.2.8",
+    "swagger-ui-dist": "^5.27.0",
     "swagger-ui-express": "^5.0.1"
   },
   "devDependencies": {
