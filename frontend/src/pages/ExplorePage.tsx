@@ -7,6 +7,7 @@ import { useTheme } from '../contexts/ThemeContext';
 import ThemeToggle from '../components/ThemeToggle';
 import RabbitFlow from '../components/RabbitFlow';
 import MainNode from '../components/nodes/MainNode';
+import FollowUpInputNode from '../components/nodes/FollowUpInputNode';
 import { searchRabbitHole } from '../services/api';
 
 const dagreGraph = new dagre.graphlib.Graph();
@@ -88,6 +89,7 @@ interface ConversationMessage {
 
 const nodeTypes = {
   mainNode: MainNode,
+  followUpInputNode: FollowUpInputNode,
 };
 
 const ExplorePage: React.FC = () => {
@@ -121,7 +123,8 @@ const ExplorePage: React.FC = () => {
         content: searchResult.response,
         images: searchResult.images?.map((img: ImageData) => img.url),
         sources: searchResult.sources,
-        isExpanded: true
+        isExpanded: true,
+        onAskFollowUp: () => handleAskFollowUp('main')
       },
       position: { x: 0, y: 0 },
       style: {
@@ -283,7 +286,8 @@ const ExplorePage: React.FC = () => {
                   content: response.response,
                   images: response.images?.map((img: ImageData) => img.url),
                   sources: response.sources,
-                  isExpanded: true 
+                  isExpanded: true,
+                  onAskFollowUp: () => handleAskFollowUp(node.id)
                 }
               };
             }
@@ -374,6 +378,69 @@ const ExplorePage: React.FC = () => {
 
   const handleBackToHome = () => {
     navigate('/home');
+  };
+
+  const handleAskFollowUp = (nodeId: string) => {
+    // Create a follow-up input node
+    const followUpNodeId = `followup-input-${nodeId}-${Date.now()}`;
+    
+    // Find the parent node to position the input node relative to it
+    const parentNode = nodes.find(n => n.id === nodeId);
+    const parentPosition = parentNode?.position || { x: 0, y: 0 };
+    
+    const followUpNode: Node = {
+      id: followUpNodeId,
+      type: 'followUpInputNode',
+      data: {
+        parentNodeId: nodeId,
+        onSubmit: (response: any) => {
+          // Handle the follow-up response
+          console.log('Follow-up response:', response);
+          // TODO: Create the actual result node from the response
+          // Remove the input node after successful submission
+          setNodes(prevNodes => prevNodes.filter(n => n.id !== followUpNodeId));
+          setEdges(prevEdges => prevEdges.filter(e => e.target !== followUpNodeId));
+        },
+        onCancel: () => {
+          // Remove the follow-up input node and its edge
+          setNodes(prevNodes => prevNodes.filter(n => n.id !== followUpNodeId));
+          setEdges(prevEdges => prevEdges.filter(e => e.target !== followUpNodeId));
+        }
+      },
+      position: { 
+        x: parentPosition.x + 600, // Position to the right of parent
+        y: parentPosition.y 
+      },
+      style: {
+        width: 400,
+        background: theme === 'dark' ? '#1a1a1a' : '#ffffff',
+        border: theme === 'dark' ? '1px solid #333' : '1px solid #e5e5e5',
+        borderRadius: '8px',
+        boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)'
+      }
+    };
+
+    // Add the follow-up input node
+    setNodes(prevNodes => [...prevNodes, followUpNode]);
+
+    // Create an edge from the parent node to the follow-up input node
+    const newEdge: Edge = {
+      id: `edge-${followUpNodeId}`,
+      source: nodeId,
+      target: followUpNodeId,
+      style: {
+        stroke: theme === 'dark' ? 'rgba(248, 248, 248, 0.8)' : 'rgba(0, 0, 0, 0.3)',
+        strokeWidth: 1.5
+      },
+      type: 'smoothstep',
+      animated: true,
+      markerEnd: {
+        type: MarkerType.ArrowClosed,
+        color: theme === 'dark' ? 'rgba(248, 248, 248, 0.8)' : 'rgba(0, 0, 0, 0.3)'
+      }
+    };
+
+    setEdges(prevEdges => [...prevEdges, newEdge]);
   };
 
   const handleLogout = () => {
