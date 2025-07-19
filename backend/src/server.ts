@@ -10,6 +10,7 @@ dotenv.config();
 
 const app = express();
 const port = process.env.PORT || 3000;
+const isDevelopment = process.env.NODE_ENV !== 'production';
 
 app.use(cors({
   origin: '*',
@@ -32,13 +33,24 @@ app.get('/api/health', (req, res) => {
 
 app.use('/api', setupRabbitHoleRoutes(null));
 
-// Serve static files from the React frontend app
-app.use(express.static(path.join(__dirname, '../../frontend/build')));
+// Serve static files from the React frontend app (only in production)
+if (!isDevelopment) {
+  app.use(express.static(path.join(__dirname, '../../frontend/build')));
 
-// Handle any remaining requests by serving the index.html
-app.get('*', (req, res) => {
-  res.sendFile(path.join(__dirname, '../../frontend/build/index.html'));
-});
+  // Handle any remaining requests by serving the index.html
+  app.get('*', (req, res) => {
+    res.sendFile(path.join(__dirname, '../../frontend/build/index.html'));
+  });
+} else {
+  // In development, just return a message for non-API routes
+  app.get('*', (req, res) => {
+    res.json({ 
+      message: 'Backend API server is running in development mode',
+      apiDocs: `http://localhost:${port}/api-docs`,
+      health: `http://localhost:${port}/api/health`
+    });
+  });
+}
 
 app.use((err: Error, req: express.Request, res: express.Response, next: express.NextFunction) => {
   console.error(err.stack);
@@ -48,4 +60,7 @@ app.use((err: Error, req: express.Request, res: express.Response, next: express.
 app.listen(port, () => {
   console.log(`Server is running on port ${port}`);
   console.log(`API Documentation available at http://localhost:${port}/api-docs`);
+  if (isDevelopment) {
+    console.log('Running in development mode - frontend should be served separately');
+  }
 }); 
