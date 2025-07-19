@@ -9,8 +9,8 @@ import { PresetCard as PresetCardType } from '../types/card';
 import { createCardFromChatMessage } from '../utils/cardUtils';
 import '../styles/search.css';
 
-// 预设卡片数据
-const PRESET_CARDS: PresetCardType[] = [
+// 用户创建的卡片数据
+const USER_CARDS: PresetCardType[] = [
   {
     id: 'consciousness',
     title: 'Consciousness & AI',
@@ -18,7 +18,7 @@ const PRESET_CARDS: PresetCardType[] = [
     tags: ['AI', 'Philosophy', 'Consciousness'],
     query: 'How does artificial intelligence relate to human consciousness and what are the philosophical implications?',
     images: [
-      'https://images.unsplash.com/photo-1676299081847-c0326a4e9b2b?w=300&h=200&fit=crop',
+      'https://images.unsplash.com/photo-1535378917042-10a22c95931a?w=300&h=200&fit=crop',
       'https://images.unsplash.com/photo-1677442136019-21780ecad995?w=300&h=200&fit=crop'
     ],
     color: 'from-blue-500/20 to-cyan-500/20'
@@ -49,10 +49,68 @@ const PRESET_CARDS: PresetCardType[] = [
   }
 ];
 
-const transformStyles = [
-  "rotate(-10deg) translate(-120px, -30px)",
-  "rotate(0deg)",
-  "rotate(10deg) translate(120px, -30px)"
+// 社区卡片数据
+const COMMUNITY_CARDS: PresetCardType[] = [
+  {
+    id: 'climate-change',
+    title: 'Climate Change Impact',
+    date: 'Last updated Dec 12 at 9:15 am',
+    tags: ['Environment', 'Science', 'Global'],
+    query: 'What are the most significant impacts of climate change on global ecosystems and human societies?',
+    images: [
+      'https://images.unsplash.com/photo-1473341304170-971dccb5ac1e?w=300&h=200&fit=crop',
+      'https://images.unsplash.com/photo-1441974231531-c6227db76b6e?w=300&h=200&fit=crop'
+    ],
+    color: 'from-green-500/20 to-emerald-500/20'
+  },
+  {
+    id: 'blockchain-future',
+    title: 'Blockchain Revolution',
+    date: 'Last updated Dec 11 at 3:45 pm',
+    tags: ['Technology', 'Blockchain', 'Future'],
+    query: 'How will blockchain technology transform various industries in the next decade?',
+    images: [
+      'https://images.unsplash.com/photo-1639762681485-074b7f938ba0?w=300&h=200&fit=crop',
+      'https://images.unsplash.com/photo-1639762681057-408e52192e55?w=300&h=200&fit=crop'
+    ],
+    color: 'from-indigo-500/20 to-purple-500/20'
+  },
+  {
+    id: 'space-exploration',
+    title: 'Space Exploration',
+    date: 'Last updated Dec 10 at 7:30 pm',
+    tags: ['Space', 'Science', 'Exploration'],
+    query: 'What are the latest developments in space exploration and their implications for humanity?',
+    images: [
+      'https://images.unsplash.com/photo-1446776877081-d282a0f896e2?w=300&h=200&fit=crop',
+      'https://images.unsplash.com/photo-1451187580459-43490279c0fa?w=300&h=200&fit=crop'
+    ],
+    color: 'from-slate-500/20 to-gray-500/20'
+  },
+  {
+    id: 'mental-health',
+    title: 'Mental Health Awareness',
+    date: 'Last updated Dec 9 at 2:20 pm',
+    tags: ['Health', 'Psychology', 'Wellness'],
+    query: 'How can we better understand and support mental health in modern society?',
+    images: [
+      'https://images.unsplash.com/photo-1559757148-5c350d0d3c56?w=300&h=200&fit=crop',
+      'https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?w=300&h=200&fit=crop'
+    ],
+    color: 'from-pink-500/20 to-rose-500/20'
+  },
+  {
+    id: 'artificial-intelligence',
+    title: 'AI Ethics & Future',
+    date: 'Last updated Dec 8 at 11:10 am',
+    tags: ['AI', 'Ethics', 'Technology'],
+    query: 'What are the ethical considerations and future implications of artificial intelligence development?',
+    images: [
+      'https://images.unsplash.com/photo-1677442136019-21780ecad995?w=300&h=200&fit=crop',
+      'https://images.unsplash.com/photo-1535378917042-10a22c95931a?w=300&h=200&fit=crop'
+    ],
+    color: 'from-cyan-500/20 to-blue-500/20'
+  }
 ];
 
 const HomePage: React.FC = () => {
@@ -63,10 +121,8 @@ const HomePage: React.FC = () => {
   const { logout, username } = useAuth();
   const { theme } = useTheme();
 
-  // 合并预设卡片和动态卡片
-  const allCards = [...PRESET_CARDS, ...dynamicCards];
-
-
+  // 合并用户卡片和动态卡片
+  const allUserCards = [...USER_CARDS, ...dynamicCards];
 
   const handleSearch = async () => {
     if (!query.trim()) return;
@@ -109,20 +165,6 @@ const HomePage: React.FC = () => {
     setDynamicCards(prev => [newCard, ...prev]);
   };
 
-  // 示例：从模拟的数据库/聊天记录添加卡片
-  // 你可以在实际应用中从API调用或聊天历史中调用这个函数
-  // useEffect(() => {
-  //   // 模拟从数据库加载用户的历史卡片
-  //   const simulatedDbData = [
-  //     { title: "Who is Donald Trump", query: "Tell me about Donald Trump's political career" },
-  //     { title: "Climate Change Effects", query: "What are the main effects of climate change?" }
-  //   ];
-  //   
-  //   simulatedDbData.forEach(data => {
-  //     addDynamicCard(data.title, data.query);
-  //   });
-  // }, []);
-
   const handleLogout = () => {
     logout();
     navigate('/login');
@@ -162,34 +204,26 @@ const HomePage: React.FC = () => {
         </div>
       </a>
 
-      <div className="w-full max-w-6xl mx-auto text-center relative px-6">
-        <div className="mb-12 animate-float">
-          <svg className="w-16 h-16 mx-auto animate-pulse-glow" viewBox="0 0 24 24" fill="none" stroke={theme === 'light' ? 'rgba(25, 118, 210, 0.8)' : 'rgba(255, 255, 255, 0.8)'} strokeWidth="1">
-            <circle cx="12" cy="12" r="10" />
-            <circle cx="12" cy="12" r="6" />
-            <circle cx="12" cy="12" r="2" />
-            <path d="M12 2v2M12 20v2M2 12h2M20 12h2" />
-            <path d="M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41" />
-          </svg>
+      <div className="w-full max-w-7xl mx-auto px-6 pt-20">
+        {/* Logo and Title */}
+        <div className="text-center mb-12">
+          <div className="mb-8 animate-float">
+            <svg className="w-16 h-16 mx-auto animate-pulse-glow" viewBox="0 0 24 24" fill="none" stroke={theme === 'light' ? 'rgba(25, 118, 210, 0.8)' : 'rgba(255, 255, 255, 0.8)'} strokeWidth="1">
+              <circle cx="12" cy="12" r="10" />
+              <circle cx="12" cy="12" r="6" />
+              <circle cx="12" cy="12" r="2" />
+              <path d="M12 2v2M12 20v2M2 12h2M20 12h2" />
+              <path d="M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41" />
+            </svg>
+          </div>
+          
+          <h1 className="font-mystical text-3xl font-light mb-8 text-gray-800 dark:text-white opacity-90 tracking-[0.2em] uppercase">
+            DISCOVER YOUR MEMORY
+          </h1>
         </div>
-        
-        <h1 className="font-mystical text-3xl font-light mb-8 text-gray-800 dark:text-white opacity-90 tracking-[0.2em] uppercase">
-          DISCOVER YOUR MEMORY
-        </h1>
 
-        {/* 卡片网格 */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-12 max-w-7xl mx-auto">
-          {allCards.map((card, index) => (
-            <PresetCard
-              key={card.id}
-              card={card}
-              onClick={handleCardClick}
-              index={index}
-            />
-          ))}
-        </div>
-        
-        <div className="relative w-full max-w-xl mx-auto group">
+        {/* 搜索栏 - 移到顶部 */}
+        <div className="relative w-full max-w-2xl mx-auto group mb-16">
           <div className="absolute -inset-0.5 bg-gradient-to-r from-primary-light/30 via-primary-light/50 to-primary-light/30 dark:from-[#2c2c2c] dark:via-[#3c3c3c] dark:to-[#2c2c2c] rounded-full opacity-30 group-hover:opacity-50 transition duration-1000 group-hover:duration-200 animate-gradient-xy blur-sm"></div>
           <input
             type="text"
@@ -215,8 +249,56 @@ const HomePage: React.FC = () => {
             </button>
           )}
         </div>
+
+        {/* 用户创建的卡片 */}
+        <div className="mb-16">
+          <div className="flex items-center gap-3 mb-8">
+            <div className="w-1 h-6 bg-gradient-to-b from-blue-500 to-cyan-500 rounded-full"></div>
+            <h2 className="text-xl font-semibold text-gray-800 dark:text-white">
+              Your Memos
+            </h2>
+            <span className="px-2 py-1 bg-blue-100 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 text-xs rounded-full">
+              {allUserCards.length}
+            </span>
+          </div>
+          
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+            {allUserCards.map((card, index) => (
+              <PresetCard
+                key={card.id}
+                card={card}
+                onClick={handleCardClick}
+                index={index}
+              />
+            ))}
+          </div>
+        </div>
+
+        {/* 社区卡片 */}
+        <div className="mb-16">
+          <div className="flex items-center gap-3 mb-8">
+            <div className="w-1 h-6 bg-gradient-to-b from-green-500 to-emerald-500 rounded-full"></div>
+            <h2 className="text-xl font-semibold text-gray-800 dark:text-white">
+              Community Memos
+            </h2>
+            <span className="px-2 py-1 bg-green-100 dark:bg-green-900/20 text-green-600 dark:text-green-400 text-xs rounded-full">
+              {COMMUNITY_CARDS.length}
+            </span>
+          </div>
+          
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+            {COMMUNITY_CARDS.map((card, index) => (
+              <PresetCard
+                key={card.id}
+                card={card}
+                onClick={handleCardClick}
+                index={index}
+              />
+            ))}
+          </div>
+        </div>
         
-        <div className="mt-8 text-gray-500 dark:text-white/40 text-sm font-light tracking-wider animate-pulse-glow">
+        <div className="text-center text-gray-500 dark:text-white/40 text-sm font-light tracking-wider animate-pulse-glow mb-8">
           UNDERSTAND ANYTHING
         </div>
       </div>
