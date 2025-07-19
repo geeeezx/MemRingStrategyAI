@@ -3,7 +3,7 @@ import cors from 'cors';
 import dotenv from 'dotenv';
 import path from 'path';
 import swaggerUi from 'swagger-ui-express';
-import { specs } from './config/swagger';
+import swaggerJsdoc from 'swagger-jsdoc';
 import { setupRabbitHoleRoutes } from './routes/rabbithole';
 
 dotenv.config();
@@ -18,6 +18,40 @@ app.use(cors({
   allowedHeaders: ['Content-Type']
 }));
 app.use(express.json());
+
+// 动态生成swagger配置
+const swaggerOptions = {
+  definition: {
+    openapi: '3.0.0',
+    info: {
+      title: 'MemRing Strategy AI API',
+      version: '1.0.0',
+      description: 'API for managing conversation trees and AI-powered research exploration',
+    },
+    servers: [
+      {
+        url: process.env.NODE_ENV === 'production' 
+          ? 'https://your-production-url.com' 
+          : `http://localhost:${port}`,
+        description: process.env.NODE_ENV === 'production' ? 'Production server' : 'Development server',
+      },
+    ],
+    components: {
+      schemas: {
+        Error: {
+          type: 'object',
+          properties: {
+            error: { type: 'string', description: 'Error message' },
+            details: { type: 'string', description: 'Error details' }
+          }
+        }
+      }
+    }
+  },
+  apis: ['./src/routes/*.ts'],
+};
+
+const specs = swaggerJsdoc(swaggerOptions);
 
 // Swagger API Documentation
 app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(specs, {

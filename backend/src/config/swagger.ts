@@ -10,7 +10,9 @@ const options = {
     },
     servers: [
       {
-        url: process.env.NODE_ENV === 'production' ? 'https://your-production-url.com' : 'http://localhost:3000',
+        url: process.env.NODE_ENV === 'production' 
+          ? 'https://your-production-url.com' 
+          : `http://localhost:${process.env.PORT || 3000}`,
         description: process.env.NODE_ENV === 'production' ? 'Production server' : 'Development server',
       },
     ],

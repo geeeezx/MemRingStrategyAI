@@ -84,6 +84,87 @@ export function setupRabbitHoleRoutes(_runtime: any) {
 
     /**
      * @swagger
+     * /api/rabbitholes/memos/{userId}:
+     *   get:
+     *     summary: Get user memos
+     *     description: Retrieves all memo cards for a specific user
+     *     tags: [Memos]
+     *     parameters:
+     *       - in: path
+     *         name: userId
+     *         required: true
+     *         schema:
+     *           type: integer
+     *         description: The user ID
+     *     responses:
+     *       200:
+     *         description: Memos retrieved successfully
+     *         content:
+     *           application/json:
+     *             schema:
+     *               type: array
+     *               items:
+     *                 type: object
+     *                 properties:
+     *                   id:
+     *                     type: integer
+     *                     description: Memo ID
+     *                   user_id:
+     *                     type: integer
+     *                     description: User ID
+     *                   title:
+     *                     type: string
+     *                     description: Memo title
+     *                   tags:
+     *                     type: array
+     *                     items:
+     *                       type: string
+     *                     description: Memo tags
+     *                   created_at:
+     *                     type: string
+     *                     format: date-time
+     *                     description: Creation timestamp
+     *                   updated_at:
+     *                     type: string
+     *                     format: date-time
+     *                     description: Last update timestamp
+     *       400:
+     *         description: Invalid user ID
+     *         content:
+     *           application/json:
+     *             schema:
+     *               $ref: '#/components/schemas/Error'
+     *       500:
+     *         description: Server error
+     *         content:
+     *           application/json:
+     *             schema:
+     *               $ref: '#/components/schemas/Error'
+     */
+    router.get("/rabbitholes/memos/:userId", async (req: express.Request, res: express.Response) => {
+        try {
+            const { userId } = req.params;
+            const userIdNumber = parseInt(userId);
+            
+            if (isNaN(userIdNumber)) {
+                return res.status(400).json({
+                    error: "Invalid user ID"
+                });
+            }
+
+            const memos = await dbService.getUserMemos(userIdNumber);
+            res.json(memos);
+        } catch (error) {
+            console.error("Error getting user memos:", error);
+            res.status(500).json({
+                error: "Failed to get user memos",
+                details: (error as Error).message,
+            });
+        }
+    });
+
+    /**
+     * @swagger
      * /api/rabbitholes/providers:
      *   get:
      *     summary: Get available AI providers

@@ -23,14 +23,75 @@ interface TreeData {
     };
 }
 
+interface MemoCard {
+    id: number;
+    user_id: number;
+    title: string;
+    tags: string[];
+    created_at: string;
+    updated_at: string;
+}
+
 export class DatabaseService {
     private pool: Pool;
 
     constructor() {
-        this.pool = new Pool({
-            connectionString: process.env.DATABASE_URL || 'postgresql://localhost:5432/memring',
+        // 更完整的数据库连接配置
+        const dbConfig = {
+            host: process.env.DB_HOST || 'localhost',
+            port: parseInt(process.env.DB_PORT || '5432'),
+            database: process.env.DB_NAME || 'memring',
+            user: process.env.DB_USER || 'postgres',
+            password: process.env.DB_PASSWORD || '',
             ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false,
-        });
+        };
+
+        // 如果有完整的DATABASE_URL，优先使用
+        if (process.env.DATABASE_URL) {
+            this.pool = new Pool({
+                connectionString: process.env.DATABASE_URL,
+                ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false,
+            });
+        } else {
+            this.pool = new Pool(dbConfig);
+        }
+
+        // 测试连接
+        this.testConnection();
+    }
+
+    private async testConnection() {
+        try {
+            const client = await this.pool.connect();
+            console.log('✅ 数据库连接成功');
+            client.release();
+        } catch (error) {
+            console.error('❌ 数据库连接失败:', error);
+            console.log('💡 请检查以下环境变量:');
+            console.log('   - DATABASE_URL (完整连接字符串)');
+            console.log('   - 或者分别设置: DB_HOST, DB_PORT, DB_NAME, DB_USER, DB_PASSWORD');
+        }
+    }
+
+    async getUserMemos(userId: number): Promise<MemoCard[]> {
+        const client = await this.pool.connect();
+        try {
+            const result = await client.query(
+                'SELECT id, user_id, title, tags, created_at, updated_at FROM memo_cards WHERE user_id = $1 ORDER BY updated_at DESC',
+                [userId]
+            );
+            
+            return result.rows.map(row => ({
+                id: row.id,
+                user_id: row.user_id,
+                title: row.title,
+                tags: row.tags || [],
+                created_at: row.created_at,
+                updated_at: row.updated_at
+            }));
+        } finally {
+            client.release();
+        }
     }
 
     async getConversationTree(memoId: number, userId: number): Promise<TreeData | null> {
@@ -255,4 +316,4 @@ export class DatabaseService {
     }
 }
 
-export const dbService = new DatabaseService(); 
+export const dbService = new DatabaseService();
