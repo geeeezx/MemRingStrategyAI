@@ -331,6 +331,9 @@ const SearchView: React.FC = () => {
 
       const response = await searchRabbitHole({
         query: questionText,
+        userId: 1, // Default user ID for now
+        memoId: 1, // Default memo ID for now
+        nodeId: node.id, // Use the node ID as the nodeId
         previousConversation: conversationHistory,
         concept: currentConcept,
         followUpMode: 'expansive'
@@ -480,6 +483,9 @@ const SearchView: React.FC = () => {
 
       const response = await searchRabbitHole({
         query,
+        userId: 1, // Default user ID for now
+        memoId: 1, // Default memo ID for now
+        nodeId: 'main', // Use 'main' as the node ID for the initial search
         previousConversation: conversationHistory,
         concept: currentConcept,
         followUpMode: 'expansive'

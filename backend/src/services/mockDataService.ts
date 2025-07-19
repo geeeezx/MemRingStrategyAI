@@ -173,7 +173,7 @@ Follow-up Questions:
     }
 
     public isDevMode(): boolean {
-        return process.env.MODE === "DEV";
+        return process.env.MODE != "production";
     }
 }
 

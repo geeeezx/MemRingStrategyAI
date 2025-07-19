@@ -132,6 +132,9 @@ const HomePage: React.FC = () => {
     try {
       const response = await searchRabbitHole({
         query: query.trim(),
+        userId: 1, // Default user ID for now
+        memoId: 1, // Default memo ID for now
+        nodeId: 'main', // Use 'main' as the node ID for the initial search
         previousConversation: [],
         concept: '',
         followUpMode: 'expansive'

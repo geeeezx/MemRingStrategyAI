@@ -264,14 +264,52 @@ export function setupRabbitHoleRoutes(_runtime: any) {
                 });
             }
 
+            // Get or create conversation tree
+            let treeData = await dbService.getConversationTree(memoId, userId);
+            if (!treeData) {
+                // Create a new conversation tree if it doesn't exist
+                treeData = {
+                    nodes: {},
+                    rootIds: [],
+                    nextNodeId: "1",
+                    metadata: {
+                        totalNodes: 0,
+                        maxDepth: 0,
+                        lastUpdated: new Date().toISOString()
+                    }
+                };
+                await dbService.updateConversationTree(memoId, userId, treeData);
+            }
+
+            // Create the node if it doesn't exist
+            if (!treeData.nodes[nodeId]) {
+                const newNode: any = {
+                    id: nodeId,
+                    type: 'node',
+                    question: query,
+                    answer: null,
+                    parentId: [],
+                    children: [],
+                    status: 'pending',
+                    imageUrls: [],
+                    createdAt: new Date().toISOString()
+                };
+                
+                treeData.nodes[nodeId] = newNode;
+                treeData.rootIds.push(nodeId);
+                treeData.metadata.totalNodes++;
+                treeData.metadata.lastUpdated = new Date().toISOString();
+                await dbService.updateConversationTree(memoId, userId, treeData);
+            }
+
             // Get conversation path from current node to root
             const conversationPath = await dbService.getConversationPath(memoId, userId, nodeId);
 
             // Perform search
-            // Use mock data if in dev mode
+            // Use mock data if Tavily client is not available
             let searchResults;
-            if (mockDataService.isDevMode()) {
-                console.log("Using mock data for Tavily search");
+            if (!tavilyClient) {
+                console.log("Tavily client not available, using mock data for search");
                 searchResults = await mockDataService.mockTavilySearch(query);
             } else {
                 searchResults = await tavilyClient.search(query, {
@@ -433,11 +471,17 @@ One of the questions should be a question that is related to the search results,
             const conversationPath = await dbService.getConversationPath(memoId, userId, parentId);
 
             // Perform search for the new question
-            const searchResults = await tavilyClient.search(question, {
-                searchDepth: "basic",
-                includeImages: true,
-                maxResults: 3,
-            });
+            let searchResults;
+            if (!tavilyClient) {
+                console.log("Tavily client not available, using mock data for search");
+                searchResults = await mockDataService.mockTavilySearch(question);
+            } else {
+                searchResults = await tavilyClient.search(question, {
+                    searchDepth: "basic",
+                    includeImages: true,
+                    maxResults: 3,
+                });
+            }
 
             // Build conversation context
             const conversationContext = conversationPath

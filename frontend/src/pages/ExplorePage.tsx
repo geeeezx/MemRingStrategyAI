@@ -255,6 +255,9 @@ const ExplorePage: React.FC = () => {
 
       const response = await searchRabbitHole({
         query: questionText,
+        userId: 1, // Default user ID for now
+        memoId: 1, // Default memo ID for now
+        nodeId: node.id, // Use the node ID as the nodeId
         previousConversation: conversationHistory,
         concept: currentConcept,
         followUpMode: 'expansive'
