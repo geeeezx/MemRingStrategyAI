@@ -1,0 +1,104 @@
+-- 創建用戶表
+CREATE TABLE IF NOT EXISTS users (
+    id SERIAL PRIMARY KEY,
+    username VARCHAR(255) UNIQUE NOT NULL,
+    email VARCHAR(255) UNIQUE NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- 刪除舊的memo_cards表（如果存在）
+DROP TABLE IF EXISTS memo_conversations CASCADE;
+DROP TABLE IF EXISTS memo_cards CASCADE;
+
+-- 創建新的memo卡片表（支持標簽數組）
+CREATE TABLE IF NOT EXISTS memo_cards (
+    id SERIAL PRIMARY KEY,
+    user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+    title VARCHAR(500) NOT NULL,
+    tags TEXT[] DEFAULT '{}',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- 創建樹狀對話記錄表
+CREATE TABLE IF NOT EXISTS memo_conversations (
+    id SERIAL PRIMARY KEY,
+    memo_id INTEGER REFERENCES memo_cards(id) ON DELETE CASCADE,
+    user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+    tree_data JSONB NOT NULL,
+    node_counter INTEGER DEFAULT 0,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    
+    UNIQUE(memo_id, user_id)
+);
+
+-- 創建索引
+CREATE INDEX IF NOT EXISTS idx_memo_conversations_memo_user ON memo_conversations(memo_id, user_id);
+CREATE INDEX IF NOT EXISTS idx_memo_conversations_tree_data ON memo_conversations USING GIN (tree_data);
+CREATE INDEX IF NOT EXISTS idx_memo_cards_tags ON memo_cards USING GIN (tags);
+
+INSERT INTO users (username, email) VALUES 
+('testuser', 'test@example.com')
+ON CONFLICT (username) DO NOTHING;
+
+INSERT INTO memo_cards (user_id, title, tags) VALUES 
+(1, 'Introduction to Egyptian Book of the Dead', ARRAY['Egyptian', 'Funerary', 'Religion'])
+ON CONFLICT DO NOTHING;
+
+-- 插入測試對話樹
+INSERT INTO memo_conversations (memo_id, user_id, tree_data, node_counter) VALUES (1, 1, '{
+  "nodes": {
+    "0": {
+      "id": "0",
+      "type": "root",
+      "question": "What is the significance of the weighing of the heart ceremony?",
+      "answer": "The weighing of the heart ceremony is a crucial judgment process in Egyptian afterlife beliefs where the deceased heart is weighed against the feather of Maat to determine worthiness for the afterlife.",
+      "parentId": null,
+      "children": ["1", "2"],
+      "status": "answered",
+      "imageUrls": ["https://example.com/weighing-ceremony.jpg", "https://example.com/heart-feather.jpg"],
+      "createdAt": "2024-01-01T10:00:00Z"
+    },
+    "1": {
+      "id": "1", 
+      "type": "node",
+      "question": "who are the judges?",
+      "answer": "The judges are the gods Osiris, Anubis, and Maat.",
+      "parentId": ["0"],
+      "children": ["3"],
+      "status": "answered",
+      "imageUrls": ["https://example.com/osiris.jpg", "https://example.com/anubis.jpg", "https://example.com/maat.jpg"],
+      "createdAt": "2024-01-01T10:01:00Z"
+    },
+    "2": {
+      "id": "2",
+      "type": "node", 
+      "question": "How does this reflect Egyptian values?",
+      "answer": null,
+      "parentId": ["0"],
+      "children": [],
+      "status": "pending",
+      "imageUrls": [],
+      "createdAt": "2024-01-01T10:02:00Z"
+    },
+    "3": {
+      "id": "3",
+      "type": "node",
+      "question": "What happens if the heart is heavier than the feather?",
+      "answer": null,
+      "parentId": ["1"], 
+      "children": [],
+      "status": "pending",
+      "imageUrls": [],
+      "createdAt": "2024-01-01T10:03:00Z"
+    }
+  },
+  "rootIds": ["0"],
+  "nextNodeId": "4",
+  "metadata": {
+    "totalNodes": 4,
+    "maxDepth": 2,
+    "lastUpdated": "2024-01-01T10:03:00Z"
+  }
+}', 4);

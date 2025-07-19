@@ -22,6 +22,7 @@ import dagre from '@dagrejs/dagre';
 import 'reactflow/dist/style.css';
 
 import { usePostHog } from 'posthog-js/react';
+import { useTheme } from '../contexts/ThemeContext';
 
 interface RabbitFlowProps {
   initialNodes: Node[];
@@ -90,6 +91,7 @@ const RabbitFlow: React.FC<RabbitFlowProps> = ({
   nodeTypes,
   onNodeClick
 }) => {
+  const { theme } = useTheme();
   const [nodes, setNodes, onNodesChange] = useNodesState([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState([]);
 
@@ -150,33 +152,33 @@ const RabbitFlow: React.FC<RabbitFlowProps> = ({
         connectionLineType={ConnectionLineType.SmoothStep}
         defaultEdgeOptions={{
           animated: true,
-          style: { stroke: 'rgba(255, 255, 255, 0.3)' }
+          style: { stroke: theme === 'dark' ? 'rgba(255, 255, 255, 0.3)' : 'rgba(0, 0, 0, 0.3)' }
         }}
         fitView
         zoomOnScroll={true}
         panOnScroll={false}
         zoomOnPinch={true}
         preventScrolling={false}
-        style={{ backgroundColor: '#000000' }}
+        style={{ backgroundColor: theme === 'dark' ? '#000000' : '#f8f9fa' }}
       >
         <Controls
-          className="!bg-[#111111] !border-gray-800"
+          className={theme === 'dark' ? '!bg-[#111111] !border-gray-800' : '!bg-white !border-gray-300'}
         />
         <MiniMap
           style={{
-            backgroundColor: '#111111',
-            border: '1px solid #333333',
+            backgroundColor: theme === 'dark' ? '#111111' : '#ffffff',
+            border: theme === 'dark' ? '1px solid #333333' : '1px solid #e5e5e5',
             borderRadius: '4px',
           }}
-          nodeColor="#666666"
-          maskColor="rgba(0, 0, 0, 0.7)"
+          nodeColor={theme === 'dark' ? '#666666' : '#cccccc'}
+          maskColor={theme === 'dark' ? 'rgba(0, 0, 0, 0.7)' : 'rgba(255, 255, 255, 0.7)'}
           className="!bottom-4 !right-4"
         />
         <Background
           variant={BackgroundVariant.Dots}
           gap={12}
           size={1}
-          color="rgba(255, 255, 255, 0.05)"
+          color={theme === 'dark' ? 'rgba(255, 255, 255, 0.05)' : 'rgba(0, 0, 0, 0.05)'}
         />
       </ReactFlow>
     </div>
