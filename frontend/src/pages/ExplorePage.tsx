@@ -33,8 +33,8 @@ const getLayoutedElements = (nodes: Node[], edges: Edge[]) => {
 
   nodes.forEach((node) => {
     dagreGraph.setNode(node.id, { 
-      width: node.id === 'main' ? nodeWidth : questionNodeWidth,
-      height: node.id === 'main' ? nodeHeight : questionNodeHeight 
+      width: nodeWidth,
+      height: nodeHeight 
     });
   });
 
@@ -42,15 +42,30 @@ const getLayoutedElements = (nodes: Node[], edges: Edge[]) => {
     dagreGraph.setEdge(edge.source, edge.target);
   });
 
-  dagre.layout(dagreGraph);
+  try {
+    dagre.layout(dagreGraph);
+  } catch (error) {
+    console.error('Dagre layout failed:', error);
+    // Return nodes with simple grid layout as fallback
+    const gridNodes = nodes.map((node, index) => ({
+      ...node,
+      position: { 
+        x: (index % 2) * 800, 
+        y: Math.floor(index / 2) * 600 
+      },
+      targetPosition: Position.Left,
+      sourcePosition: Position.Right
+    }));
+    return { nodes: gridNodes, edges };
+  }
 
   const newNodes = nodes.map((node) => {
     const nodeWithPosition = dagreGraph.node(node.id);
     return {
       ...node,
       position: {
-        x: nodeWithPosition.x - (node.id === 'main' ? nodeWidth / 2 : questionNodeWidth / 2),
-        y: nodeWithPosition.y - (node.id === 'main' ? nodeHeight / 2 : questionNodeHeight / 2)
+        x: nodeWithPosition.x - nodeWidth / 2,
+        y: nodeWithPosition.y - nodeHeight / 2
       },
       targetPosition: Position.Left,
       sourcePosition: Position.Right
@@ -103,18 +118,102 @@ const ExplorePage: React.FC = () => {
   const [currentConcept, setCurrentConcept] = useState<string>('');
   const activeRequestRef = useRef<{ [key: string]: AbortController | null }>({});
 
-  // Get search result from location state
+  // Function to load conversation tree from backend data
+  const loadConversationTree = (treeData: any, memoTitle: string) => {
+    try {
+      // Transform tree data to nodes and edges
+      const treeNodes: Node[] = [];
+      const treeEdges: Edge[] = [];
+
+      // Handle the actual backend response structure
+      if (treeData.nodes && typeof treeData.nodes === 'object') {
+        const nodesMap = treeData.nodes;
+        
+        // Process each node in the tree
+        Object.values(nodesMap).forEach((nodeData: any) => {
+          const node: Node = {
+            id: nodeData.id,
+            type: 'mainNode',
+            data: {
+              label: nodeData.question || memoTitle || 'Node',
+              content: nodeData.answer || '',
+              images: nodeData.imageUrls || [],
+              sources: [], // Backend doesn't provide sources in this format
+              isExpanded: true,
+              onAskFollowUp: () => handleAskFollowUp(nodeData.id)
+            },
+            position: { x: 0, y: 0 },
+            style: {
+              width: nodeWidth,
+              minHeight: '500px',
+              background: theme === 'dark' ? '#1a1a1a' : '#ffffff',
+              opacity: 1
+            }
+          };
+          treeNodes.push(node);
+
+          // Create edges based on parent-child relationships
+          if (nodeData.parentId && Array.isArray(nodeData.parentId) && nodeData.parentId.length > 0) {
+            nodeData.parentId.forEach((parentId: string) => {
+              const edge: Edge = {
+                id: `edge-${parentId}-${nodeData.id}`,
+                source: parentId,
+                target: nodeData.id,
+                type: 'custom',
+                animated: false,
+                markerEnd: {
+                  type: MarkerType.ArrowClosed,
+                  color: theme === 'dark' ? '#ffffff' : 'rgba(0, 0, 0, 0.6)'
+                }
+              };
+              treeEdges.push(edge);
+            });
+          }
+        });
+      }
+
+      // Layout the nodes and edges using dagre
+      const { nodes: layoutedNodes, edges: layoutedEdges } = getLayoutedElements(
+        treeNodes,
+        treeEdges
+      );
+
+      setNodes(layoutedNodes);
+      setEdges(layoutedEdges);
+      
+      setCurrentConcept(memoTitle || 'Conversation Tree');
+    } catch (error) {
+      console.error('Error loading conversation tree:', error);
+      navigate('/home');
+    }
+  };
+
+  // Get data from location state
   const searchResult = location.state?.searchResult as SearchResponse | null;
   const initialQuery = location.state?.query as string | '';
+  const treeData = location.state?.treeData as any | null;
+  const memoTitle = location.state?.memoTitle as string | '';
+  const memoId = location.state?.memoId as number | null;
 
   useEffect(() => {
-    // If no search result, redirect to home
+    // If no search result and no tree data, redirect to home
+    if (!searchResult && !treeData) {
+      navigate('/home');
+      return;
+    }
+
+    // If we have tree data, load the conversation tree
+    if (treeData) {
+      loadConversationTree(treeData, memoTitle);
+      return;
+    }
+
+    // Initialize flow with search result
     if (!searchResult) {
       navigate('/home');
       return;
     }
 
-    // Initialize flow with search result
     const mainNode: Node = {
       id: 'main',
       type: 'mainNode',
@@ -180,7 +279,7 @@ const ExplorePage: React.FC = () => {
     setNodes(layoutedNodes);
     setEdges(layoutedEdges);
     setCurrentConcept(searchResult.contextualQuery || initialQuery);
-  }, [searchResult, initialQuery, navigate]);
+  }, [searchResult, initialQuery, navigate, treeData, memoTitle, memoId]);
 
   // Update existing nodes' styles when theme changes
   useEffect(() => {
@@ -448,7 +547,7 @@ const ExplorePage: React.FC = () => {
     navigate('/login');
   };
 
-  if (!searchResult) {
+  if (!searchResult && !treeData) {
     return null; // This should not render since we redirect to home
   }
 

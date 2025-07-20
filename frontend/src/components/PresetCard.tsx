@@ -6,7 +6,7 @@ import { PresetCard as PresetCardType } from '../types/card';
 
 interface PresetCardProps {
   card: PresetCardType;
-  onClick: (query: string) => void;
+  onClick: (card: PresetCardType) => void;
   index?: number;
 }
 
@@ -54,7 +54,7 @@ const PresetCard: React.FC<PresetCardProps> = ({ card, onClick, index = 0 }) => 
   }, [theme]);
 
   const handleClick = () => {
-    onClick(card.query);
+    onClick(card);
   };
 
   return (

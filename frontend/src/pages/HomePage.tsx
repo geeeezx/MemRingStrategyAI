@@ -4,7 +4,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
 import ThemeToggle from '../components/ThemeToggle';
 import PresetCard from '../components/PresetCard';
-import { searchRabbitHole, getUserMemos } from '../services/api';
+import { searchRabbitHole, getUserMemos, getConversationTree } from '../services/api';
 import { PresetCard as PresetCardType } from '../types/card';
 import { createCardFromChatMessage } from '../utils/cardUtils';
 import '../styles/search.css';
@@ -128,7 +128,7 @@ const HomePage: React.FC = () => {
     const loadUserMemos = async () => {
       try {
         setIsLoadingMemos(true);
-        const memos = await getUserMemos(1); // Using userId 1 for now
+        const memos = await getUserMemos(1); // Todo: Using userId 1 for now
         console.log('Loaded memos from backend:', memos);
         
         // Transform backend memo data to frontend card format
@@ -199,8 +199,28 @@ const HomePage: React.FC = () => {
     }
   };
 
-  const handleCardClick = (cardQuery: string) => {
-    setQuery(cardQuery);
+  const handleCardClick = async (card: PresetCardType) => {
+    try {
+      setIsLoading(true);
+      
+      // Load the conversation tree for this memo
+      const treeData = await getConversationTree(parseInt(card.id), 1); // Using userId 1 for now
+      
+      // Navigate to explore page with tree data
+      navigate('/explore', { 
+        state: { 
+          treeData: treeData,
+          memoTitle: card.title,
+          memoId: parseInt(card.id)
+        } 
+      });
+    } catch (error) {
+      console.error('Failed to load conversation tree:', error);
+      // Fallback: set the query and do a search
+      setQuery(card.query);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   // 示例：添加动态卡片的函数（用于演示）

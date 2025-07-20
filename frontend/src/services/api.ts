@@ -27,4 +27,9 @@ export const getUserMemos = async (userId: number) => {
     return response.data;
 };
 
+export const getConversationTree = async (memoId: number, userId: number) => {
+    const response = await api.get(`/rabbitholes/tree/${memoId}/${userId}`);
+    return response.data;
+};
+
 export default api; 
