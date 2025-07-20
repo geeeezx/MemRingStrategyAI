@@ -311,6 +311,23 @@ export class DatabaseService {
         return maxDepth;
     }
 
+    // Create a new memo card
+    async createMemoCard(userId: number, title: string, tags: string[]): Promise<number> {
+        const client = await this.pool.connect();
+        try {
+            const result = await client.query(
+                'INSERT INTO memo_cards (user_id, title, tags) VALUES ($1, $2, $3) RETURNING id',
+                [userId, title, tags]
+            );
+            return result.rows[0].id;
+        } catch (error) {
+            console.error('Error creating memo card:', error);
+            throw new Error('Failed to create memo card');
+        } finally {
+            client.release();
+        }
+    }
+
     async close(): Promise<void> {
         await this.pool.end();
     }

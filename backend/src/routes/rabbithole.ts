@@ -1,8 +1,8 @@
 import express from "express";
-import { tavily } from "@tavily/core";
 import { openAIService } from "../services/openaiService";
 import { dbService } from "../services/dbService";
-import { mockDataService } from "../services/mockDataService";
+import { SearchAgent } from "../agent/searchAgent";
+import { MemoAgent } from "../agent/memoAgent";
 import OpenAI from "openai";
 
 interface RabbitHoleSearchRequest {
@@ -23,12 +23,33 @@ interface AddNodeRequest {
     provider?: string;
 }
 
-interface AddNodeRequest {
+interface CreateMemoRequest {
+    query: string;
     userId: number;
-    memoId: number;
-    parentId: string;
-    question: string;
     provider?: string;
+}
+
+interface CreateMemoResponse {
+    memoId: number;
+    title: string;
+    tags: string[];
+    rootNodeId: string;
+    answer: string;
+    followUpQuestions: string[];
+    newFollowUpNodeIds: string[];
+    imageUrls: string[];
+    sources: Array<{
+        title: string;
+        url: string;
+        uri: string;
+        author: string;
+        image: string;
+    }>;
+    images: Array<{
+        url: string;
+        thumbnail: string;
+        description: string;
+    }>;
 }
 
 interface SearchResponse {
@@ -56,6 +77,8 @@ interface AddNodeResponse {
     question: string;
     answer: string;
     parentId: string;
+    followUpQuestions: string[];
+    newFollowUpNodeIds: string[];
     sources: Array<{
         title: string;
         url: string;
@@ -72,15 +95,8 @@ interface AddNodeResponse {
 
 export function setupRabbitHoleRoutes(_runtime: any) {
     const router = express.Router();
-    const isDevMode = process.env.MODE === 'DEV';
-    
-    // Initialize Tavily client only if not in dev mode
-    let tavilyClient: any = null;
-    if (!isDevMode) {
-        tavilyClient = tavily({ apiKey: process.env.TAVILY_API_KEY });
-    } else {
-        console.log('Running in development mode - Tavily client not initialized');
-    }
+
+
 
     /**
      * @swagger
@@ -386,91 +402,27 @@ export function setupRabbitHoleRoutes(_runtime: any) {
             // Get conversation path from current node to root
             const conversationPath = await dbService.getConversationPath(memoId, userId, nodeId);
 
-            // Perform search
-            // Use mock data if Tavily client is not available
-            let searchResults;
-            if (!tavilyClient) {
-                console.log("Tavily client not available, using mock data for search");
-                searchResults = await mockDataService.mockTavilySearch(query);
-            } else {
-                searchResults = await tavilyClient.search(query, {
+            // Use SearchAgent to process the search and generate response
+            const agentResponse = await SearchAgent.processSearchResults({
+                query,
+                concept,
+                followUpMode,
+                conversationPath,
+                provider: "gemini",
+                searchOptions: {
                     searchDepth: "basic",
                     includeImages: true,
                     maxResults: 3,
-                });
-            }
+                }
+            });
 
-            // Build conversation context
-            const conversationContext = conversationPath
-                .map(msg => `User: ${msg.user}\nAssistant: ${msg.assistant}\n`)
-                .join("\n");
-
-            const messages = [
-                {
-                    role: "system",
-                    content: `You are an AI assistant that helps users explore topics in depth. Format your responses using markdown with headers (####).
-
-Your goal is to provide comprehensive, accurate information while maintaining engagement.
-Base your response on the search results provided, and structure it clearly with relevant sections.
-
-After your main response, include a "Follow-up Questions:" section with 3 concise questions that would help users explore the topic further.
-One of the questions should be a question that is related to the search results, and the other two should be either thought provoking questions or devil's advocate/conspiracy questions.
-`,
-                },
-                {
-                    role: "user",
-                    content: `Previous conversation:\n${conversationContext}\n\nSearch results about "${query}":\n${JSON.stringify(
-                        searchResults
-                    )}\n\nPlease provide a comprehensive response about ${
-                        concept || query
-                    }. Include relevant facts, context, and relationships to other topics. Format the response in markdown with #### headers. The response should be ${
-                        followUpMode === "expansive" ? "broad and exploratory" : "focused and specific"
-                    }.`,
-                },
-            ];
-
-            const completion = (await openAIService.createChatCompletion(messages, "gemini")) as OpenAI.Chat.ChatCompletion;
-            const response = completion.choices?.[0]?.message?.content ?? "";
-
-            // Extract follow-up questions more precisely by looking for the section
-            const followUpSection = response.split("Follow-up Questions:")[1];
-            const followUpQuestions = followUpSection
-                ? followUpSection
-                    .trim()
-                    .split("\n")
-                    .filter((line) => line.trim())
-                    .map((line) => line.replace(/^\d+\.\s*/, "").trim())
-                    .filter((line) => line.includes("?"))
-                    .slice(0, 3)
-                : [];
-
-            // Remove the Follow-up Questions section from the main response
-            const mainResponse = response.split("Follow-up Questions:")[0].trim();
-
-            // Extract image URLs from search results
-            const imageUrls = searchResults.images
-                ? searchResults.images.map((img: any) => img.url).filter((url: string) => url)
-                : [];
+            const { mainResponse, followUpQuestions, imageUrls, sources, images } = agentResponse;
 
             // Update the node with the answer and image URLs
             await dbService.updateNodeAnswer(memoId, userId, nodeId, mainResponse, imageUrls);
 
             // Create follow-up nodes
             const newFollowUpNodeIds = await dbService.addMultipleChildNodes(memoId, userId, nodeId, followUpQuestions);
-
-            const sources = searchResults.results.map((result: any) => ({
-                title: result.title || "",
-                url: result.url || "",
-                uri: result.url || "",
-                author: result.author || "",
-                image: result.image || "",
-            }));
-
-            const images = searchResults.images.map((result: any) => ({
-                url: result.url,
-                thumbnail: result.url,
-                description: result.description || "",
-            }));
 
             const searchResponse: SearchResponse = {
                 response: mainResponse,
@@ -551,71 +503,33 @@ One of the questions should be a question that is related to the search results,
             // Get conversation path from parent node to root
             const conversationPath = await dbService.getConversationPath(memoId, userId, parentId);
 
-            // Perform search for the new question
-            let searchResults;
-            if (!tavilyClient) {
-                console.log("Tavily client not available, using mock data for search");
-                searchResults = await mockDataService.mockTavilySearch(question);
-            } else {
-                searchResults = await tavilyClient.search(question, {
+            // Use SearchAgent to process the add node request
+            const agentResponse = await SearchAgent.processAddNodeRequest({
+                question,
+                conversationPath,
+                provider,
+                searchOptions: {
                     searchDepth: "basic",
                     includeImages: true,
                     maxResults: 3,
-                });
-            }
+                }
+            });
 
-            // Build conversation context
-            const conversationContext = conversationPath
-                .map(msg => `User: ${msg.user}\nAssistant: ${msg.assistant}\n`)
-                .join("\n");
-
-            const messages = [
-                {
-                    role: "system",
-                    content: `You are an AI assistant that helps users explore topics in depth. Format your responses using markdown with headers (####).
-
-Your goal is to provide comprehensive, accurate information while maintaining engagement.
-Base your response on the search results provided, and structure it clearly with relevant sections.
-`,
-                },
-                {
-                    role: "user",
-                    content: `Previous conversation:\n${conversationContext}\n\nSearch results about "${question}":\n${JSON.stringify(
-                        searchResults
-                    )}\n\nPlease provide a comprehensive response about "${question}". Include relevant facts, context, and relationships to other topics. Format the response in markdown with #### headers.`,
-                },
-            ];
-
-            const completion = (await openAIService.createChatCompletion(messages, provider)) as OpenAI.Chat.ChatCompletion;
-            const answer = completion.choices?.[0]?.message?.content ?? "";
-
-            // Extract image URLs from search results
-            const imageUrls = searchResults.images
-                ? searchResults.images.map((img: any) => img.url).filter((url: string) => url)
-                : [];
+            const { answer, followUpQuestions, imageUrls, sources, images } = agentResponse;
 
             // Add the new node with the answer and image URLs
             const newNodeId = await dbService.addChildNode(memoId, userId, parentId, question, answer, imageUrls);
 
-            const sources = searchResults.results.map((result: any) => ({
-                title: result.title || "",
-                url: result.url || "",
-                uri: result.url || "",
-                author: result.author || "",
-                image: result.image || "",
-            }));
-
-            const images = searchResults.images.map((result: any) => ({
-                url: result.url,
-                thumbnail: result.url,
-                description: result.description || "",
-            }));
+            // Create follow-up nodes for the new node
+            const newFollowUpNodeIds = await dbService.addMultipleChildNodes(memoId, userId, newNodeId, followUpQuestions);
 
             const addNodeResponse: AddNodeResponse = {
                 nodeId: newNodeId,
                 question,
                 answer,
                 parentId,
+                followUpQuestions,
+                newFollowUpNodeIds,
                 sources,
                 images,
             };
@@ -625,6 +539,93 @@ Base your response on the search results provided, and structure it clearly with
             console.error("Error in add node endpoint:", error);
             res.status(500).json({
                 error: "Failed to add node",
+                details: (error as Error).message,
+            });
+        }
+    });
+
+    /**
+     * @swagger
+     * /api/rabbitholes/create-memo:
+     *   post:
+     *     summary: Create a new memo with conversation tree
+     *     description: Creates a new memo by analyzing user intent, generating title and tags, then creating a root node with AI-generated content and follow-up questions
+     *     tags: [Memo Management]
+     *     requestBody:
+     *       required: true
+     *       content:
+     *         application/json:
+     *           schema:
+     *             $ref: '#/components/schemas/CreateMemoRequest'
+     *           example:
+     *             query: "How do neural networks work?"
+     *             userId: 1
+     *             provider: "gemini"
+     *     responses:
+     *       200:
+     *         description: Memo created successfully with root node and follow-up questions
+     *         content:
+     *           application/json:
+     *             schema:
+     *               $ref: '#/components/schemas/CreateMemoResponse'
+     *       400:
+     *         description: Missing required parameters
+     *         content:
+     *           application/json:
+     *             schema:
+     *               $ref: '#/components/schemas/Error'
+     *       500:
+     *         description: Server error
+     *         content:
+     *           application/json:
+     *             schema:
+     *               $ref: '#/components/schemas/Error'
+     */
+    router.post("/rabbitholes/create-memo", async (req: express.Request, res: express.Response) => {
+        try {
+            const {
+                query,
+                userId,
+                provider = "gemini"
+            } = req.body as CreateMemoRequest;
+
+            // Validate required parameters
+            if (!query || !userId) {
+                return res.status(400).json({
+                    error: "Missing required parameters: query or userId"
+                });
+            }
+
+            // Use MemoAgent to create new memo with complete conversation tree
+            const memoResponse = await MemoAgent.createNewMemo({
+                query,
+                userId,
+                provider,
+                searchOptions: {
+                    searchDepth: "basic",
+                    includeImages: true,
+                    maxResults: 3,
+                }
+            });
+
+            const createMemoResponse: CreateMemoResponse = {
+                memoId: memoResponse.memoId,
+                title: memoResponse.title,
+                tags: memoResponse.tags,
+                rootNodeId: memoResponse.rootNodeId,
+                answer: memoResponse.answer,
+                followUpQuestions: memoResponse.followUpQuestions,
+                newFollowUpNodeIds: memoResponse.newFollowUpNodeIds,
+                imageUrls: memoResponse.imageUrls,
+                sources: memoResponse.sources,
+                images: memoResponse.images,
+            };
+
+            res.json(createMemoResponse);
+        } catch (error) {
+            console.error("Error in create memo endpoint:", error);
+            res.status(500).json({
+                error: "Failed to create memo",
                 details: (error as Error).message,
             });
         }
