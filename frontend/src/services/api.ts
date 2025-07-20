@@ -41,4 +41,27 @@ export const createMemo = async (params: {
     return response.data;
 };
 
+// File upload API (placeholder for when backend is ready)
+export const uploadFileAndAnalyze = async (params: {
+    file: File;
+    userId: number;
+    provider?: string;
+}, signal?: AbortSignal) => {
+    // TODO: Implement when backend file upload API is ready
+    const formData = new FormData();
+    formData.append('file', params.file);
+    formData.append('userId', params.userId.toString());
+    if (params.provider) {
+        formData.append('provider', params.provider);
+    }
+    
+    const response = await api.post('/rabbitholes/upload-file', formData, {
+        headers: {
+            'Content-Type': 'multipart/form-data',
+        },
+        signal
+    });
+    return response.data;
+};
+
 export default api; 

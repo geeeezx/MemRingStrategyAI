@@ -4,7 +4,8 @@ import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
 import ThemeToggle from '../components/ThemeToggle';
 import PresetCard from '../components/PresetCard';
-import { createMemo, getUserMemos, getConversationTree } from '../services/api';
+import FileUpload from '../components/FileUpload';
+import { createMemo, getUserMemos, getConversationTree, uploadFileAndAnalyze } from '../services/api';
 import { PresetCard as PresetCardType } from '../types/card';
 import { createCardFromChatMessage } from '../utils/cardUtils';
 import '../styles/search.css';
@@ -142,6 +143,8 @@ const HomePage: React.FC = () => {
   const [userMemos, setUserMemos] = useState<PresetCardType[]>([]);
   const [dynamicCards, setDynamicCards] = useState<PresetCardType[]>([]);
   const [isLoadingMemos, setIsLoadingMemos] = useState(true);
+  const [activeTab, setActiveTab] = useState<'text' | 'file'>('text');
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const navigate = useNavigate();
   const { logout, username } = useAuth();
   const { theme } = useTheme();
@@ -228,6 +231,66 @@ const HomePage: React.FC = () => {
       });
     } catch (error) {
       console.error('CreateMemo failed:', error);
+      setIsLoading(false);
+    }
+  };
+
+  const handleFileUpload = async (file: File) => {
+    console.log('File selected for upload:', file);
+    setSelectedFile(file);
+    
+    setIsLoading(true);
+    try {
+      // Use the real API when backend is ready, otherwise use mock
+      let response;
+      
+      try {
+        // Try to call the real API first
+        response = await uploadFileAndAnalyze({
+          file: file,
+          userId: 1, // Default user ID for now
+          provider: 'gemini'
+        });
+        console.log('File upload API response:', response);
+      } catch (apiError) {
+        console.log('Backend file upload API not available yet, using mock response');
+        
+        // Fallback to mock response when backend API is not ready
+        response = {
+          memoId: Date.now(),
+          rootNodeId: `file-${Date.now()}`,
+          title: `Analysis of ${file.name}`,
+          answer: `File uploaded: ${file.name} (${(file.size / 1024).toFixed(1)} KB). Analysis will be available once the backend file processing API is implemented.`,
+          followUpQuestions: [
+            "What are the key insights from this file?",
+            "How can this information be applied?",
+            "What patterns or trends are evident?"
+          ],
+          newFollowUpNodeIds: [],
+          sources: [],
+          images: []
+        };
+      }
+      
+      // Navigate to explore page with the file upload result (same format as search)
+      navigate('/explore', { 
+        state: { 
+          searchResult: {
+            response: response.answer,
+            followUpQuestions: response.followUpQuestions,
+            contextualQuery: `File: ${file.name}`,
+            nodeId: response.rootNodeId,
+            newFollowUpNodeIds: response.newFollowUpNodeIds,
+            sources: response.sources,
+            images: response.images,
+          },
+          query: `File: ${file.name}`,
+          memoId: response.memoId,
+          memoTitle: response.title
+        }
+      });
+    } catch (error) {
+      console.error('File upload failed:', error);
       setIsLoading(false);
     }
   };
@@ -324,31 +387,88 @@ const HomePage: React.FC = () => {
           </h1>
         </div>
 
-        {/* 搜索栏 - 移到顶部 */}
-        <div className="relative w-full max-w-2xl mx-auto group mb-16">
-          <div className="absolute -inset-0.5 bg-gradient-to-r from-primary-light/30 via-primary-light/50 to-primary-light/30 dark:from-[#2c2c2c] dark:via-[#3c3c3c] dark:to-[#2c2c2c] rounded-full opacity-30 group-hover:opacity-50 transition duration-1000 group-hover:duration-200 animate-gradient-xy blur-sm"></div>
-          <input
-            type="text"
-            className="w-full px-6 py-4 rounded-full bg-white dark:bg-[#111111] text-gray-800 dark:text-white/90 border border-gray-300 dark:border-white/10 focus:border-primary-light dark:focus:border-white/20 focus:outline-none placeholder-gray-500 dark:placeholder-white/30 shadow-lg backdrop-blur-sm font-light tracking-wide transition-colors duration-300"
-            value={query}
-            onChange={(e: React.ChangeEvent<HTMLInputElement>) => setQuery(e.target.value)}
-            onKeyPress={(e: React.KeyboardEvent) => e.key === 'Enter' && handleSearch()}
-            placeholder="Create a new memo"
-            disabled={isLoading}
-          />
-          {isLoading ? (
-            <div className="absolute right-4 top-1/2 transform -translate-y-1/2">
-              <div className="w-5 h-5 border border-gray-400 dark:border-white/20 rounded-full animate-spin border-t-primary-light dark:border-t-white/80"></div>
+        {/* Search Interface with Tabs */}
+        <div className="w-full max-w-2xl mx-auto mb-16">
+          {/* Tab Switcher */}
+          <div className="flex justify-center mb-6">
+            <div className="flex bg-gray-100 dark:bg-gray-800/50 rounded-full p-1">
+              <button
+                onClick={() => setActiveTab('text')}
+                className={`px-6 py-2 rounded-full text-sm font-medium transition-all duration-200 ${
+                  activeTab === 'text'
+                    ? 'bg-white dark:bg-gray-700 text-gray-900 dark:text-white shadow-sm'
+                    : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'
+                }`}
+              >
+                <span className="flex items-center space-x-2">
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                  </svg>
+                  <span>Text Search</span>
+                </span>
+              </button>
+              <button
+                onClick={() => setActiveTab('file')}
+                className={`px-6 py-2 rounded-full text-sm font-medium transition-all duration-200 ${
+                  activeTab === 'file'
+                    ? 'bg-white dark:bg-gray-700 text-gray-900 dark:text-white shadow-sm'
+                    : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'
+                }`}
+              >
+                <span className="flex items-center space-x-2">
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+                  </svg>
+                  <span>Upload File</span>
+                </span>
+              </button>
+            </div>
+          </div>
+
+          {/* Tab Content */}
+          {activeTab === 'text' ? (
+            <div className="relative w-full group">
+              <div className="absolute -inset-0.5 bg-gradient-to-r from-primary-light/30 via-primary-light/50 to-primary-light/30 dark:from-[#2c2c2c] dark:via-[#3c3c3c] dark:to-[#2c2c2c] rounded-full opacity-30 group-hover:opacity-50 transition duration-1000 group-hover:duration-200 animate-gradient-xy blur-sm"></div>
+              <input
+                type="text"
+                className="w-full px-6 py-4 rounded-full bg-white dark:bg-[#111111] text-gray-800 dark:text-white/90 border border-gray-300 dark:border-white/10 focus:border-primary-light dark:focus:border-white/20 focus:outline-none placeholder-gray-500 dark:placeholder-white/30 shadow-lg backdrop-blur-sm font-light tracking-wide transition-colors duration-300"
+                value={query}
+                onChange={(e: React.ChangeEvent<HTMLInputElement>) => setQuery(e.target.value)}
+                onKeyPress={(e: React.KeyboardEvent) => e.key === 'Enter' && handleSearch()}
+                placeholder="Create a new memo with text"
+                disabled={isLoading}
+              />
+              {isLoading ? (
+                <div className="absolute right-4 top-1/2 transform -translate-y-1/2">
+                  <div className="w-5 h-5 border border-gray-400 dark:border-white/20 rounded-full animate-spin border-t-primary-light dark:border-t-white/80"></div>
+                </div>
+              ) : (
+                <button 
+                  onClick={handleSearch}
+                  className="absolute right-3 top-1/2 transform -translate-y-1/2 p-2 rounded-full hover:bg-gray-100 dark:hover:bg-white/5 transition-colors duration-200"
+                >
+                  <svg className="w-5 h-5 text-gray-600 dark:text-white/70" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                  </svg>
+                </button>
+              )}
             </div>
           ) : (
-            <button 
-              onClick={handleSearch}
-              className="absolute right-3 top-1/2 transform -translate-y-1/2 p-2 rounded-full hover:bg-gray-100 dark:hover:bg-white/5 transition-colors duration-200"
-            >
-              <svg className="w-5 h-5 text-gray-600 dark:text-white/70" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-              </svg>
-            </button>
+            <div className="relative w-full">
+              <FileUpload
+                onFileSelect={handleFileUpload}
+                disabled={isLoading}
+                className="w-full"
+              />
+              {isLoading && (
+                <div className="absolute inset-0 bg-white/50 dark:bg-black/50 rounded-lg flex items-center justify-center">
+                  <div className="flex items-center space-x-3">
+                    <div className="w-5 h-5 border border-gray-400 dark:border-white/20 rounded-full animate-spin border-t-primary-light dark:border-t-white/80"></div>
+                    <span className="text-gray-600 dark:text-gray-400">Processing file...</span>
+                  </div>
+                </div>
+              )}
+            </div>
           )}
         </div>
 

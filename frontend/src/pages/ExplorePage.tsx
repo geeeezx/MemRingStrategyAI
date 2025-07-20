@@ -510,15 +510,10 @@ const ExplorePage: React.FC = () => {
   const CLICK_DEBOUNCE_MS = 500; // 500ms debounce
 
   const handleAskFollowUp = (nodeId: string) => {
-    console.log('handleAskFollowUp called for nodeId:', nodeId);
-    console.log('Current nodes count:', nodes.length);
-    console.log('All followUpInputNode nodes:', nodes.filter(n => n.type === 'followUpInputNode'));
-    
     // Debounce: prevent clicks within 500ms
     const now = Date.now();
     const lastClick = lastClickRef.current.get(nodeId) || 0;
     if (now - lastClick < CLICK_DEBOUNCE_MS) {
-      console.log('Debounced click for nodeId:', nodeId);
       return;
     }
     lastClickRef.current.set(nodeId, now);
@@ -529,11 +524,8 @@ const ExplorePage: React.FC = () => {
       n.data.parentNodeId === nodeId
     );
     
-    console.log('Existing follow-up node:', existingFollowUpNode);
-    
     if (existingFollowUpNode) {
       // Remove existing follow-up input node and its edge (toggle off)
-      console.log('Removing existing follow-up node');
       setNodes(prevNodes => prevNodes.filter(n => n.id !== existingFollowUpNode.id));
       setEdges(prevEdges => prevEdges.filter(e => e.target !== existingFollowUpNode.id));
       return;
@@ -541,10 +533,7 @@ const ExplorePage: React.FC = () => {
     
     // Always remove any existing follow-up input nodes first (ensure clean state)  
     setNodes(prevNodes => {
-      const followUpNodes = prevNodes.filter(n => n.type === 'followUpInputNode');
       const filteredNodes = prevNodes.filter(n => n.type !== 'followUpInputNode');
-      console.log('Removing', followUpNodes.length, 'existing followUpInputNode(s)');
-      console.log('Remaining nodes count:', filteredNodes.length);
       return filteredNodes;
     });
     
@@ -552,7 +541,6 @@ const ExplorePage: React.FC = () => {
       const filteredEdges = prevEdges.filter(e => 
         !e.target?.startsWith('followup-input-')
       );
-      console.log('Removed follow-up edges, remaining count:', filteredEdges.length);
       return filteredEdges;
     });
     
@@ -560,7 +548,6 @@ const ExplorePage: React.FC = () => {
     setTimeout(() => {
       // Create a new follow-up input node (toggle on)
       const followUpNodeId = `followup-input-${nodeId}-${Date.now()}`;
-      console.log('Creating new follow-up node with ID:', followUpNodeId);
     
     // Find the parent node to position the input node relative to it
     const parentNode = nodes.find(n => n.id === nodeId);
