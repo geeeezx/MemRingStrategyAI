@@ -20,6 +20,7 @@ import ReactFlow, {
 } from 'reactflow';
 import dagre from '@dagrejs/dagre';
 import 'reactflow/dist/style.css';
+import CustomEdge from './CustomEdge';
 
 import { usePostHog } from 'posthog-js/react';
 import { useTheme } from '../contexts/ThemeContext';
@@ -95,6 +96,10 @@ const RabbitFlow: React.FC<RabbitFlowProps> = ({
   const [nodes, setNodes, onNodesChange] = useNodesState([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState([]);
 
+  const edgeTypes = React.useMemo(() => ({
+    custom: CustomEdge,
+  }), []);
+
   React.useEffect(() => {
     const { nodes: layoutedNodes, edges: layoutedEdges } = getLayoutedElements(
       initialNodes,
@@ -149,6 +154,7 @@ const RabbitFlow: React.FC<RabbitFlowProps> = ({
         onConnect={onConnect}
         onNodeClick={handleNodeClick}
         nodeTypes={nodeTypes}
+        edgeTypes={edgeTypes}
         connectionLineType={ConnectionLineType.SmoothStep}
         defaultEdgeOptions={{
           animated: true,

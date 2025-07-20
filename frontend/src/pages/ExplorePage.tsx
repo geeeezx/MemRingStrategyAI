@@ -163,15 +163,12 @@ const ExplorePage: React.FC = () => {
       id: `edge-${index}`,
       source: 'main',
       target: `question-${index}`,
-      style: { 
-        stroke: theme === 'dark' ? 'rgba(248, 248, 248, 0.8)' : 'rgba(0, 0, 0, 0.3)', 
-        strokeWidth: 1.5
-      },
-      type: 'smoothstep',
-      animated: true,
+      type: 'custom',
+      animated: false,
+      data: { isSuggestion: true }, // These are suggestion nodes
       markerEnd: {
         type: MarkerType.ArrowClosed,
-        color: theme === 'dark' ? 'rgba(248, 248, 248, 0.8)' : 'rgba(0, 0, 0, 0.3)'
+        color: theme === 'dark' ? '#ffffff' : 'rgba(0, 0, 0, 0.6)'
       }
     }));
 
@@ -294,6 +291,15 @@ const ExplorePage: React.FC = () => {
             return n;
           });
 
+          // Update the edge from main to this node to be solid (complete)
+          setEdges(prevEdges => 
+            prevEdges.map(edge => 
+              edge.target === node.id 
+                ? { ...edge, data: { isSuggestion: false } }
+                : edge
+            )
+          );
+
           const newFollowUpNodes: Node[] = response.followUpQuestions.map((question: string, index: number) => {
             const uniqueId = `question-${node.id}-${Date.now()}-${Math.random().toString(36).substr(2, 9)}-${index}`;
             return {
@@ -326,15 +332,12 @@ const ExplorePage: React.FC = () => {
             id: `edge-${followUpNode.id}`,
             source: node.id,
             target: followUpNode.id,
-            style: {
-              stroke: theme === 'dark' ? 'rgba(248, 248, 248, 0.8)' : 'rgba(0, 0, 0, 0.3)',
-              strokeWidth: 1.5
-            },
-            type: 'smoothstep',
-            animated: true,
+            type: 'custom',
+            animated: false,
+            data: { isSuggestion: true }, // These are new suggestion nodes
             markerEnd: {
               type: MarkerType.ArrowClosed,
-              color: theme === 'dark' ? 'rgba(248, 248, 248, 0.8)' : 'rgba(0, 0, 0, 0.3)'
+              color: theme === 'dark' ? '#ffffff' : 'rgba(0, 0, 0, 0.6)'
             }
           }));
 
@@ -428,15 +431,12 @@ const ExplorePage: React.FC = () => {
       id: `edge-${followUpNodeId}`,
       source: nodeId,
       target: followUpNodeId,
-      style: {
-        stroke: theme === 'dark' ? 'rgba(248, 248, 248, 0.8)' : 'rgba(0, 0, 0, 0.3)',
-        strokeWidth: 1.5
-      },
-      type: 'smoothstep',
-      animated: true,
+      type: 'custom',
+      animated: false,
+      data: { isSuggestion: false }, // This is a complete node (follow-up input)
       markerEnd: {
         type: MarkerType.ArrowClosed,
-        color: theme === 'dark' ? 'rgba(248, 248, 248, 0.8)' : 'rgba(0, 0, 0, 0.3)'
+        color: theme === 'dark' ? '#ffffff' : 'rgba(0, 0, 0, 0.6)'
       }
     };
 
