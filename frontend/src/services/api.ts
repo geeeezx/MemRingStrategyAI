@@ -41,4 +41,43 @@ export const createMemo = async (params: {
     return response.data;
 };
 
+export const summarizeMemo = async (params: {
+    memoId: number;
+    userId: number;
+    provider?: string;
+}, signal?: AbortSignal) => {
+    const response = await api.post('/rabbitholes/summarize-memo', params, { signal });
+    return response.data;
+};
+
+export const generatePodcast = async (params: {
+    memoId: number;
+    userId: number;
+    provider?: string;
+    config?: {
+        podcastName?: string;
+        podcastTagline?: string;
+        language?: string;
+        hostName?: string;
+        hostRole?: string;
+        guestName?: string;
+        guestRole?: string;
+        conversationStyle?: string;
+        wordCount?: number;
+        creativity?: number;
+        maxTokens?: number;
+        hostVoice?: string;
+        guestVoice?: string;
+        additionalInstructions?: string;
+    };
+}, signal?: AbortSignal) => {
+    const response = await api.post('/rabbitholes/generate-podcast', params, { signal });
+    return response.data;
+};
+
+export const getPodcastVoices = async () => {
+    const response = await api.get('/rabbitholes/podcast-voices');
+    return response.data;
+};
+
 export default api; 

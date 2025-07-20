@@ -1,4 +1,5 @@
 import OpenAI from "openai";
+import { GoogleGenAI } from "@google/genai";
 import dotenv from 'dotenv';
 import { mockDataService } from './mockDataService';
 
@@ -21,6 +22,7 @@ export interface ModelConfig {
 export class OpenAIService {
     private static instance: OpenAIService;
     private clients: Map<string, OpenAI>;
+    private geminiClients: Map<string, GoogleGenAI>;
     private modelConfigs: ModelConfig;
     private defaultProvider: string;
 
@@ -28,9 +30,11 @@ export class OpenAIService {
         const googleApiKey = process.env.GOOGLE_AI_API_KEY;
         const openaiApiKey = process.env.OPENAI_API_KEY;
         const defaultProvider = process.env.DEFAULT_AI_PROVIDER || 'openai';
-        const isDevMode = process.env.MODE === 'DEV';
+        // 统一开发模式检查逻辑，与mockDataService保持一致
+        const isDevMode = process.env.MODE !== 'production';
 
         this.clients = new Map();
+        this.geminiClients = new Map();
         this.modelConfigs = {};
         this.defaultProvider = defaultProvider;
 
@@ -124,8 +128,15 @@ export class OpenAIService {
         }
 
         const selectedProvider = provider || this.defaultProvider;
-        const client = this.getClient(selectedProvider);
         const config = this.modelConfigs[selectedProvider];
+
+        // Handle Gemini API calls
+        if (selectedProvider === 'gemini') {
+            return await this.callGeminiAPI(messages, config, options);
+        }
+
+        // Handle OpenAI API calls
+        const client = this.getClient(selectedProvider);
         const response = await client.chat.completions.create({
             messages: messages as OpenAI.Chat.ChatCompletionMessageParam[],
             model: config.model,
@@ -133,6 +144,83 @@ export class OpenAIService {
             ...options,
         });
         return response as OpenAI.Chat.ChatCompletion;
+    }
+
+    private async callGeminiAPI(
+        messages: Array<{
+            role: string;
+            content: string | Array<{ type: string; text?: string; imageUrl?: string }>;
+        }>,
+        config: any,
+        options: any
+    ): Promise<OpenAI.Chat.ChatCompletion> {
+        console.log('Calling Gemini API...');
+        
+        // Check API key
+        const apiKey = process.env.GOOGLE_AI_API_KEY;
+        if (!apiKey) {
+            throw new Error('Google API key not configured. Please set GOOGLE_AI_API_KEY environment variable.');
+        }
+
+        const ai = new GoogleGenAI({ apiKey });
+
+        // Convert messages to Gemini format
+        const geminiMessages = messages.map(msg => {
+            if (msg.role === 'system') {
+                return `System: ${msg.content}`;
+            } else if (msg.role === 'user') {
+                return `User: ${msg.content}`;
+            } else {
+                return `Assistant: ${msg.content}`;
+            }
+        });
+
+        const prompt = geminiMessages.join('\n\n');
+        console.log('Gemini prompt:', prompt.substring(0, 200) + '...');
+
+        try {
+            const result = await ai.models.generateContent({
+                model: config.model,
+                contents: [{ parts: [{ text: prompt }] }],
+                config: {
+                    temperature: options.temperature || 0.7,
+                    maxOutputTokens: options.max_tokens || 2048,
+                }
+            });
+
+            const text = result.candidates?.[0]?.content?.parts?.[0]?.text || '';
+            
+            if (!text) {
+                console.error('No text content in Gemini response:', JSON.stringify(result, null, 2));
+                throw new Error('No text content received from Gemini API');
+            }
+
+            // Convert to OpenAI format for compatibility
+            return {
+                id: `gemini-completion-${Date.now()}`,
+                object: "chat.completion",
+                created: Math.floor(Date.now() / 1000),
+                model: config.model,
+                choices: [
+                    {
+                        index: 0,
+                        message: {
+                            role: "assistant",
+                            content: text
+                        },
+                        finish_reason: "stop"
+                    }
+                ],
+                usage: {
+                    prompt_tokens: 0, // Gemini doesn't provide token counts
+                    completion_tokens: 0,
+                    total_tokens: 0
+                }
+            } as OpenAI.Chat.ChatCompletion;
+        } catch (error) {
+            console.error('Gemini API error:', error);
+            throw new Error(`Gemini API call failed: ${error}`);
+        }
     }
 
     public async createStreamCompletion(

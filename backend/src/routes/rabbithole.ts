@@ -3,7 +3,10 @@ import { openAIService } from "../services/openaiService";
 import { dbService } from "../services/dbService";
 import { SearchAgent } from "../agent/searchAgent";
 import { MemoAgent } from "../agent/memoAgent";
+import { PodcastAgent } from "../agent/podcastAgent";
 import OpenAI from "openai";
+import fs from "fs";
+import path from "path";
 
 interface RabbitHoleSearchRequest {
     query: string;
@@ -50,6 +53,53 @@ interface CreateMemoResponse {
         thumbnail: string;
         description: string;
     }>;
+}
+
+interface SummarizeMemoRequest {
+    memoId: number;
+    userId: number;
+    provider?: string;
+}
+
+interface SummarizeMemoResponse {
+    summary: string;
+    totalNodes: number;
+    answeredNodes: number;
+}
+
+interface GeneratePodcastRequest {
+    memoId: number;
+    userId: number;
+    provider?: string;
+    config?: {
+        podcastName?: string;
+        podcastTagline?: string;
+        language?: string;
+        hostName?: string;
+        hostRole?: string;
+        guestName?: string;
+        guestRole?: string;
+        conversationStyle?: string;
+        wordCount?: number;
+        creativity?: number;
+        maxTokens?: number;
+        hostVoice?: string;
+        guestVoice?: string;
+        additionalInstructions?: string;
+    };
+}
+
+interface GeneratePodcastResponse {
+    success: boolean;
+    script: string;
+    audioFileName: string;
+    audioUrl: string;
+    scriptFileName: string;
+    scriptUrl: string;
+    timestamp: number;
+    summary: string;
+    totalNodes: number;
+    answeredNodes: number;
 }
 
 interface SearchResponse {
@@ -631,6 +681,490 @@ export function setupRabbitHoleRoutes(_runtime: any) {
             console.error("Error in create memo endpoint:", error);
             res.status(500).json({
                 error: "Failed to create memo",
+                details: (error as Error).message,
+            });
+        }
+    });
+
+    /**
+     * @swagger
+     * /api/rabbitholes/summarize-memo:
+     *   post:
+     *     summary: Summarize a memo's conversation tree
+     *     description: Generates a comprehensive summary of all answered nodes in a memo's conversation tree using breadth-first traversal
+     *     tags: [Memo Management]
+     *     requestBody:
+     *       required: true
+     *       content:
+     *         application/json:
+     *           schema:
+     *             $ref: '#/components/schemas/SummarizeMemoRequest'
+     *           example:
+     *             memoId: 1
+     *             userId: 1
+     *             provider: "gemini"
+     *     responses:
+     *       200:
+     *         description: Memo summarized successfully
+     *         content:
+     *           application/json:
+     *             schema:
+     *               $ref: '#/components/schemas/SummarizeMemoResponse'
+     *       400:
+     *         description: Missing required parameters
+     *         content:
+     *           application/json:
+     *             schema:
+     *               $ref: '#/components/schemas/Error'
+     *       404:
+     *         description: Memo or conversation tree not found
+     *         content:
+     *           application/json:
+     *             schema:
+     *               $ref: '#/components/schemas/Error'
+     *       500:
+     *         description: Server error
+     *         content:
+     *           application/json:
+     *             schema:
+     *               $ref: '#/components/schemas/Error'
+     */
+    router.post("/rabbitholes/summarize-memo", async (req: express.Request, res: express.Response) => {
+        try {
+            const {
+                memoId,
+                userId,
+                provider = "gemini"
+            } = req.body as SummarizeMemoRequest;
+
+            // Validate required parameters
+            if (!memoId || !userId) {
+                return res.status(400).json({
+                    error: "Missing required parameters: memoId or userId"
+                });
+            }
+
+            // Get the memo information
+            const userMemos = await dbService.getUserMemos(userId);
+            const memo = userMemos.find(m => m.id === memoId);
+            if (!memo) {
+                return res.status(404).json({
+                    error: "Memo not found"
+                });
+            }
+
+            // Get conversation tree
+            const treeData = await dbService.getConversationTree(memoId, userId);
+            if (!treeData) {
+                return res.status(404).json({
+                    error: "Conversation tree not found"
+                });
+            }
+
+            // Perform breadth-first traversal to collect all answered nodes
+            interface QAContent {
+                question: string;
+                answer: string;
+                nodeId: string;
+                depth: number;
+            }
+
+            const answeredContents: QAContent[] = [];
+            const queue: Array<{ nodeId: string, depth: number }> = [];
+            const visited = new Set<string>();
+
+            // Start with root nodes
+            for (const rootId of treeData.rootIds) {
+                queue.push({ nodeId: rootId, depth: 0 });
+            }
+
+            // Breadth-first traversal
+            while (queue.length > 0) {
+                const { nodeId, depth } = queue.shift()!;
+                
+                if (visited.has(nodeId)) continue;
+                visited.add(nodeId);
+
+                const node = treeData.nodes[nodeId];
+                if (!node) continue;
+
+                // Collect answered nodes
+                if (node.status === 'answered' && node.answer) {
+                    answeredContents.push({
+                        question: node.question,
+                        answer: node.answer,
+                        nodeId: node.id,
+                        depth: depth
+                    });
+                }
+
+                // Add children to queue
+                for (const childId of node.children) {
+                    if (!visited.has(childId)) {
+                        queue.push({ nodeId: childId, depth: depth + 1 });
+                    }
+                }
+            }
+
+            if (answeredContents.length === 0) {
+                return res.status(400).json({
+                    error: "No answered content found in this memo"
+                });
+            }
+
+            // Prepare content for summarization
+            const contentForSummary = answeredContents.map((content, index) => 
+                `${index + 1}. Q: ${content.question}\n   A: ${content.answer}`
+            ).join('\n\n');
+
+            // Generate summary using LLM
+            const messages = [
+                {
+                    role: "system",
+                    content: `You are an expert at creating comprehensive summaries of conversation trees. Your task is to analyze a series of questions and answers from a knowledge exploration session and create a coherent, insightful summary that captures the key themes, insights, and conclusions.
+
+Please provide:
+1. A brief introduction about the main topic
+2. Key findings and insights organized logically
+3. Important conclusions or takeaways
+4. Any patterns or connections between different parts of the conversation
+
+Format your response in clear, readable sections with markdown formatting.`
+                },
+                {
+                    role: "user",
+                    content: `Please summarize this conversation tree about "${memo.title}".
+
+Tags: ${memo.tags.join(', ')}
+
+Conversation Content (${answeredContents.length} answered questions):
+
+${contentForSummary}
+
+Please provide a comprehensive summary that captures the essence of this exploration and its key insights.`
+                }
+            ];
+
+            const completion = await openAIService.createChatCompletion(messages, provider);
+            const summary = completion.choices?.[0]?.message?.content ?? "Failed to generate summary";
+
+            const summarizeMemoResponse: SummarizeMemoResponse = {
+                summary: summary,
+                totalNodes: Object.keys(treeData.nodes).length,
+                answeredNodes: answeredContents.length
+            };
+
+            res.json(summarizeMemoResponse);
+        } catch (error) {
+            console.error("Error in summarize memo endpoint:", error);
+            res.status(500).json({
+                error: "Failed to summarize memo",
+                details: (error as Error).message,
+            });
+        }
+    });
+
+    /**
+     * @swagger
+     * /api/rabbitholes/generate-podcast:
+     *   post:
+     *     summary: Generate podcast from memo content
+     *     description: Creates a podcast script and audio file based on a memo's conversation tree summary
+     *     tags: [Podcast Generation]
+     *     requestBody:
+     *       required: true
+     *       content:
+     *         application/json:
+     *           schema:
+     *             $ref: '#/components/schemas/GeneratePodcastRequest'
+     *           example:
+     *             memoId: 1
+     *             userId: 1
+     *             provider: "gemini"
+     *             config:
+     *               podcastName: "AI深度解析"
+     *               hostName: "Alex"
+     *               guestName: "Dr. Smith"
+     *               wordCount: 800
+     *     responses:
+     *       200:
+     *         description: Podcast generated successfully
+     *         content:
+     *           application/json:
+     *             schema:
+     *               $ref: '#/components/schemas/GeneratePodcastResponse'
+     *       400:
+     *         description: Missing required parameters or no answered content
+     *         content:
+     *           application/json:
+     *             schema:
+     *               $ref: '#/components/schemas/Error'
+     *       404:
+     *         description: Memo or conversation tree not found
+     *         content:
+     *           application/json:
+     *             schema:
+     *               $ref: '#/components/schemas/Error'
+     *       500:
+     *         description: Server error
+     *         content:
+     *           application/json:
+     *             schema:
+     *               $ref: '#/components/schemas/Error'
+     */
+    router.post("/rabbitholes/generate-podcast", async (req: express.Request, res: express.Response) => {
+        try {
+            const {
+                memoId,
+                userId,
+                provider = "gemini",
+                config = {}
+            } = req.body as GeneratePodcastRequest;
+
+            // Validate required parameters
+            if (!memoId || !userId) {
+                return res.status(400).json({
+                    error: "Missing required parameters: memoId or userId"
+                });
+            }
+
+            console.log(`Starting podcast generation for memo ${memoId}, user ${userId}`);
+
+            // Step 1: Get memo information and conversation tree summary
+            const userMemos = await dbService.getUserMemos(userId);
+            const memo = userMemos.find(m => m.id === memoId);
+            if (!memo) {
+                return res.status(404).json({
+                    error: "Memo not found"
+                });
+            }
+
+            // Get conversation tree
+            const treeData = await dbService.getConversationTree(memoId, userId);
+            if (!treeData) {
+                return res.status(404).json({
+                    error: "Conversation tree not found"
+                });
+            }
+
+            // Perform breadth-first traversal to collect all answered nodes
+            interface QAContent {
+                question: string;
+                answer: string;
+                nodeId: string;
+                depth: number;
+            }
+
+            const answeredContents: QAContent[] = [];
+            const queue: Array<{ nodeId: string, depth: number }> = [];
+            const visited = new Set<string>();
+
+            // Start with root nodes
+            for (const rootId of treeData.rootIds) {
+                queue.push({ nodeId: rootId, depth: 0 });
+            }
+
+            // Breadth-first traversal
+            while (queue.length > 0) {
+                const { nodeId, depth } = queue.shift()!;
+                
+                if (visited.has(nodeId)) continue;
+                visited.add(nodeId);
+
+                const node = treeData.nodes[nodeId];
+                if (!node) continue;
+
+                // Collect answered nodes
+                if (node.status === 'answered' && node.answer) {
+                    answeredContents.push({
+                        question: node.question,
+                        answer: node.answer,
+                        nodeId: node.id,
+                        depth: depth
+                    });
+                }
+
+                // Add children to queue
+                for (const childId of node.children) {
+                    if (!visited.has(childId)) {
+                        queue.push({ nodeId: childId, depth: depth + 1 });
+                    }
+                }
+            }
+
+            if (answeredContents.length === 0) {
+                return res.status(400).json({
+                    error: "No answered content found in this memo to generate podcast"
+                });
+            }
+
+            // Step 2: Prepare content for podcast generation
+            const contentForPodcast = `# ${memo.title}
+
+标签: ${memo.tags.join(', ')}
+
+## 对话内容摘要
+
+以下是从这个知识探索对话中提取的主要问答内容：
+
+${answeredContents.map((content, index) => 
+                `${index + 1}. **问题**: ${content.question}
+   
+   **回答**: ${content.answer}`
+            ).join('\n\n')}
+
+## 总体信息
+- 总节点数: ${Object.keys(treeData.nodes).length}
+- 已回答节点数: ${answeredContents.length}
+- 主题探索深度: ${Math.max(...answeredContents.map(c => c.depth)) + 1} 层
+
+请基于以上内容生成引人入胜的播客对话。`;
+
+            // Step 3: Generate podcast using PodcastAgent
+            console.log('Generating podcast with PodcastAgent...');
+            const podcastResult = await PodcastAgent.generatePodcast({
+                content: contentForPodcast,
+                userId,
+                memoId,
+                memoTitle: memo.title,
+                memoTags: memo.tags,
+                config,
+                provider
+            });
+
+            // Step 4: Prepare response URLs
+            const audioUrl = `/api/rabbitholes/download-podcast/${podcastResult.audioFileName}`;
+            const scriptUrl = `/api/rabbitholes/download-podcast/${podcastResult.scriptFileName}`;
+
+            const generatePodcastResponse: GeneratePodcastResponse = {
+                success: podcastResult.success,
+                script: podcastResult.script,
+                audioFileName: podcastResult.audioFileName,
+                audioUrl: audioUrl,
+                scriptFileName: podcastResult.scriptFileName,
+                scriptUrl: scriptUrl,
+                timestamp: podcastResult.timestamp,
+                summary: `基于 "${memo.title}" 的播客已成功生成，包含${answeredContents.length}个回答节点的内容。`,
+                totalNodes: Object.keys(treeData.nodes).length,
+                answeredNodes: answeredContents.length
+            };
+
+            console.log(`Podcast generation completed successfully:
+                Audio: ${podcastResult.audioFileName}
+                Script: ${podcastResult.scriptFileName}`);
+
+            res.json(generatePodcastResponse);
+        } catch (error) {
+            console.error("Error in generate podcast endpoint:", error);
+            res.status(500).json({
+                error: "Failed to generate podcast",
+                details: (error as Error).message,
+            });
+        }
+    });
+
+    /**
+     * @swagger
+     * /api/rabbitholes/download-podcast/{filename}:
+     *   get:
+     *     summary: Download podcast files
+     *     description: Download generated podcast audio or script files
+     *     tags: [Podcast Generation]
+     *     parameters:
+     *       - in: path
+     *         name: filename
+     *         required: true
+     *         schema:
+     *           type: string
+     *         description: The filename of the podcast file to download
+     *     responses:
+     *       200:
+     *         description: File downloaded successfully
+     *         content:
+     *           audio/wav:
+     *             schema:
+     *               type: string
+     *               format: binary
+     *           text/plain:
+     *             schema:
+     *               type: string
+     *       404:
+     *         description: File not found
+     *         content:
+     *           application/json:
+     *             schema:
+     *               $ref: '#/components/schemas/Error'
+     */
+    router.get("/rabbitholes/download-podcast/:filename", async (req: express.Request, res: express.Response) => {
+        try {
+            const filename = req.params.filename;
+            const podcastDir = path.join(process.cwd(), 'podcast_outputs');
+            const filePath = path.join(podcastDir, filename);
+
+            // 检查文件是否存在
+            try {
+                await fs.promises.access(filePath);
+            } catch (error) {
+                return res.status(404).json({
+                    error: "Podcast file not found"
+                });
+            }
+
+            // 设置适当的 Content-Type
+            if (filename.endsWith('.wav')) {
+                res.setHeader('Content-Type', 'audio/wav');
+            } else if (filename.endsWith('.txt')) {
+                res.setHeader('Content-Type', 'text/plain');
+            }
+
+            res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+            res.sendFile(path.resolve(filePath));
+        } catch (error) {
+            console.error('Podcast file download error:', error);
+            res.status(500).json({
+                error: "Failed to download podcast file",
+                details: (error as Error).message
+            });
+        }
+    });
+
+    /**
+     * @swagger
+     * /api/rabbitholes/podcast-voices:
+     *   get:
+     *     summary: Get available podcast voice options
+     *     description: Returns information about available voices for podcast generation
+     *     tags: [Podcast Generation]
+     *     responses:
+     *       200:
+     *         description: Voice options retrieved successfully
+     *         content:
+     *           application/json:
+     *             schema:
+     *               type: object
+     *               properties:
+     *                 voices:
+     *                   type: array
+     *                   items:
+     *                     type: string
+     *                   description: List of available voice names
+     *                 defaultVoices:
+     *                   type: object
+     *                   properties:
+     *                     host:
+     *                       type: string
+     *                     guest:
+     *                       type: string
+     *                   description: Default voice assignments
+     */
+    router.get("/rabbitholes/podcast-voices", async (req: express.Request, res: express.Response) => {
+        try {
+            const voiceOptions = PodcastAgent.getVoiceOptions();
+            res.json(voiceOptions);
+        } catch (error) {
+            console.error("Error getting podcast voice options:", error);
+            res.status(500).json({
+                error: "Failed to get podcast voice options",
                 details: (error as Error).message,
             });
         }
