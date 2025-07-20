@@ -4,11 +4,12 @@ import axios from 'axios';
 import ReactFlow, { Node, Edge, MarkerType, Position } from 'reactflow';
 import dagre from 'dagre';
 import gsap from 'gsap';
+import { useNavigate } from 'react-router-dom';
 import RabbitFlow from './RabbitFlow';
 import MainNode from './nodes/MainNode';
 import FollowUpInputNode from './nodes/FollowUpInputNode';
 import '../styles/search.css';
-import { searchRabbitHole } from '../services/api';
+import { createMemo, searchRabbitHole } from '../services/api';
 
 const dagreGraph = new dagre.graphlib.Graph();
 dagreGraph.setDefaultEdgeLabel(() => ({}));
@@ -85,6 +86,29 @@ interface SearchResponse {
 interface ConversationMessage {
   user?: string;
   assistant?: string;
+}
+
+interface CreateMemoResponse {
+  memoId: number;
+  title: string;
+  tags: string[];
+  rootNodeId: string;
+  answer: string;
+  followUpQuestions: string[];
+  newFollowUpNodeIds: string[];
+  imageUrls: string[];
+  sources: Array<{
+    title: string;
+    url: string;
+    uri: string;
+    author: string;
+    image: string;
+  }>;
+  images: Array<{
+    url: string;
+    thumbnail: string;
+    description: string;
+  }>;
 }
 
 const nodeTypes = {
@@ -244,6 +268,7 @@ const getRandomQuestion = (category: keyof typeof DECK_QUESTIONS) => {
 };
 
 const SearchView: React.FC = () => {
+  const navigate = useNavigate();
   const [query, setQuery] = useState('');
   const [searchResult, setSearchResult] = useState<SearchResponse | null>(null);
   const [nodes, setNodes] = useState<Node[]>([]);
@@ -520,105 +545,65 @@ const SearchView: React.FC = () => {
 
     try {
       setIsLoading(true);
-      const loadingNode: Node = {
-        id: 'main',
-        type: 'mainNode',
-        data: { 
-          label: query,
-          content: 'Loading...',
-          images: [],
-          sources: [],
-          isExpanded: true 
-        },
-        position: { x: 0, y: 0 },
-        style: {
-          width: nodeWidth,
-          height: nodeHeight,
-          minHeight: nodeHeight,
-          background: '#1a1a1a',
-          color: '#fff',
-          border: '1px solid #333',
-          borderRadius: '8px',
-          boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)',
-          cursor: 'default' 
-        }
-      };
+      console.log('Starting createMemo with query:', query);
 
-      setNodes([loadingNode]);
-      setEdges([]);
-
-      const response = await searchRabbitHole({
+      // Create a new memo with the search query
+      const response: CreateMemoResponse = await createMemo({
         query,
         userId: 1, // Default user ID for now
-        memoId: 1, // Default memo ID for now
-        nodeId: 'main', // Use 'main' as the node ID for the initial search
-        previousConversation: conversationHistory,
-        concept: currentConcept,
-        followUpMode: 'expansive'
+        provider: 'gemini'
       });
-      setSearchResult(response);
       
-      const mainNode: Node = {
-        ...loadingNode,
-        data: { 
-          label: response.contextualQuery || query,
-          content: response.response,
-          images: response.images?.map((img: ImageData) => img.url),
-          sources: response.sources,
-          isExpanded: true,
-          onAskFollowUp: () => handleAskFollowUp('main')
+      console.log('CreateMemo response:', response);
+
+      // Navigate to explore page with the created memo data
+      navigate('/explore', { 
+        state: { 
+          treeData: {
+            nodes: {
+              [response.rootNodeId]: {
+                id: response.rootNodeId,
+                type: 'node',
+                question: query,
+                answer: response.answer,
+                parentId: [],
+                children: response.newFollowUpNodeIds,
+                status: 'completed',
+                imageUrls: response.imageUrls,
+                createdAt: new Date().toISOString()
+              },
+              // Add follow-up nodes as pending nodes
+              ...response.newFollowUpNodeIds.reduce((acc: any, nodeId: string, index: number) => {
+                acc[nodeId] = {
+                  id: nodeId,
+                  type: 'node',
+                  question: response.followUpQuestions[index],
+                  answer: null,
+                  parentId: [response.rootNodeId],
+                  children: [],
+                  status: 'pending',
+                  imageUrls: [],
+                  createdAt: new Date().toISOString()
+                };
+                return acc;
+              }, {})
+            },
+            rootIds: [response.rootNodeId],
+            nextNodeId: (parseInt(response.rootNodeId) + response.newFollowUpNodeIds.length + 1).toString(),
+            metadata: {
+              totalNodes: 1 + response.newFollowUpNodeIds.length,
+              maxDepth: 1,
+              lastUpdated: new Date().toISOString()
+            }
+          },
+          memoTitle: response.title,
+          memoId: response.memoId
         }
-      };
-      const followUpNodes: Node[] = response.followUpQuestions.map((question: string, index: number) => ({
-        id: `question-${index}`,
-        type: 'default',
-        data: { 
-          label: question,
-          isExpanded: false,
-          content: '',
-          images: [],
-          sources: []
-        },
-        position: { x: 0, y: 0 },
-        style: {
-          width: questionNodeWidth,
-          background: '#1a1a1a',
-          color: '#fff',
-          border: '1px solid #333',
-          borderRadius: '8px',
-          fontSize: '14px',
-          textAlign: 'left',
-          boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)',
-          cursor: 'pointer'
-        }
-      }));
-
-      const edges: Edge[] = followUpNodes.map((_, index) => ({
-        id: `edge-${index}`,
-        source: 'main',
-        target: `question-${index}`,
-        style: { 
-          stroke: 'rgba(248, 248, 248, 0.8)', 
-          strokeWidth: 1.5
-        },
-        type: 'smoothstep',
-        animated: true,
-        markerEnd: {
-          type: MarkerType.ArrowClosed,
-          color: 'rgba(248, 248, 248, 0.8)'
-        }
-      }));
-
-
-      const { nodes: layoutedNodes, edges: layoutedEdges } = getLayoutedElements(
-        [mainNode, ...followUpNodes],
-        edges
-      );
-
-      setNodes(layoutedNodes);
-      setEdges(layoutedEdges);
+      });
     } catch (error) {
-      console.error('Search failed:', error);
+      console.error('CreateMemo failed:', error);
+      // Show error to user
+      alert('Failed to create memo: ' + (error as Error).message);
     } finally {
       setIsLoading(false);
     }

@@ -47,8 +47,6 @@ const CustomEdge: React.FC<CustomEdgeProps> = ({
     targetPosition,
   });
 
-  console.log('CustomEdge path:', { id, edgePath, sourceX, sourceY, targetX, targetY, edgeColor });
-
   return (
     <g>
       <defs>

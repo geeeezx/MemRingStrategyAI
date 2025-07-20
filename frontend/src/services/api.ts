@@ -27,4 +27,18 @@ export const getUserMemos = async (userId: number) => {
     return response.data;
 };
 
+export const getConversationTree = async (memoId: number, userId: number) => {
+    const response = await api.get(`/rabbitholes/tree/${memoId}/${userId}`);
+    return response.data;
+};
+
+export const createMemo = async (params: {
+    query: string;
+    userId: number;
+    provider?: string;
+}, signal?: AbortSignal) => {
+    const response = await api.post('/rabbitholes/create-memo', params, { signal });
+    return response.data;
+};
+
 export default api; 
