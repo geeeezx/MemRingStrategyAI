@@ -103,13 +103,18 @@ export class MemoAgent {
         // Step 1: Analyze intent to generate title and tags
         const intentAnalysis = await this.analyzeIntent(query, provider);
 
-        // Step 2: Create memo card in database
-        const memoId = await dbService.createMemoCard(userId, intentAnalysis.title, intentAnalysis.tags);
-
-        // Step 3: Perform search for the query
+        // Step 2: Perform search for the query
         const searchResults = await searchService.search(query, searchOptions);
 
-        // Step 4: Generate root node content using LLM
+        // Step 3: Extract image URLs from search results (for memo card)
+        const imageUrls = searchResults.images
+            ? searchResults.images.map((img: any) => img.url).filter((url: string) => url)
+            : [];
+
+        // Step 4: Create memo card in database
+        const memoId = await dbService.createMemoCard(userId, intentAnalysis.title, intentAnalysis.tags, imageUrls);
+
+        // Step 5: Generate root node content using LLM
         const messages = [
             {
                 role: "system",
@@ -126,7 +131,7 @@ export class MemoAgent {
         const completion = (await openAIService.createChatCompletion(messages, provider)) as OpenAI.Chat.ChatCompletion;
         const response = completion.choices?.[0]?.message?.content ?? "";
 
-        // Step 5: Extract follow-up questions
+        // Step 6: Extract follow-up questions
         const followUpSection = response.split("Follow-up Questions:")[1];
         const followUpQuestions = followUpSection
             ? followUpSection
@@ -141,12 +146,9 @@ export class MemoAgent {
         // Remove the Follow-up Questions section from the main response
         const mainResponse = response.split("Follow-up Questions:")[0].trim();
 
-        // Step 6: Extract image URLs from search results
-        const imageUrls = searchResults.images
-            ? searchResults.images.map((img: any) => img.url).filter((url: string) => url)
-            : [];
+        // Step 7: imageUrls already extracted for memo card creation
 
-        // Step 7: Create conversation tree with root node
+        // Step 8: Create conversation tree with root node
         const rootNodeId = "0";
         const treeData = {
             nodes: {
@@ -171,13 +173,13 @@ export class MemoAgent {
             }
         };
 
-        // Step 8: Save conversation tree to database
+        // Step 9: Save conversation tree to database
         await dbService.updateConversationTree(memoId, userId, treeData);
 
-        // Step 9: Create follow-up nodes
+        // Step 10: Create follow-up nodes
         const newFollowUpNodeIds = await dbService.addMultipleChildNodes(memoId, userId, rootNodeId, followUpQuestions);
 
-        // Step 10: Generate sources and images from search results
+        // Step 11: Generate sources and images from search results
         const sources = searchResults.results.map((result: any) => ({
             title: result.title || "",
             url: result.url || "",

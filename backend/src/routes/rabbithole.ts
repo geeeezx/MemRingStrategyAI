@@ -131,12 +131,17 @@ export function setupRabbitHoleRoutes(_runtime: any) {
      *                   title:
      *                     type: string
      *                     description: Memo title
-     *                   tags:
-     *                     type: array
-     *                     items:
-     *                       type: string
-     *                     description: Memo tags
-     *                   created_at:
+                      *                   tags:
+                 *                     type: array
+                 *                     items:
+                 *                       type: string
+                 *                     description: Memo tags
+                 *                   image_urls:
+                 *                     type: array
+                 *                     items:
+                 *                       type: string
+                 *                     description: Image URLs associated with the memo
+                 *                   created_at:
      *                     type: string
      *                     format: date-time
      *                     description: Creation timestamp

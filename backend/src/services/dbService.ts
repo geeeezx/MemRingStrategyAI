@@ -28,6 +28,7 @@ interface MemoCard {
     user_id: number;
     title: string;
     tags: string[];
+    image_urls: string[];
     created_at: string;
     updated_at: string;
 }
@@ -77,7 +78,7 @@ export class DatabaseService {
         const client = await this.pool.connect();
         try {
             const result = await client.query(
-                'SELECT id, user_id, title, tags, created_at, updated_at FROM memo_cards WHERE user_id = $1 ORDER BY updated_at DESC',
+                'SELECT id, user_id, title, tags, image_urls, created_at, updated_at FROM memo_cards WHERE user_id = $1 ORDER BY updated_at DESC',
                 [userId]
             );
             
@@ -86,6 +87,7 @@ export class DatabaseService {
                 user_id: row.user_id,
                 title: row.title,
                 tags: row.tags || [],
+                image_urls: row.image_urls || [],
                 created_at: row.created_at,
                 updated_at: row.updated_at
             }));
@@ -312,12 +314,12 @@ export class DatabaseService {
     }
 
     // Create a new memo card
-    async createMemoCard(userId: number, title: string, tags: string[]): Promise<number> {
+    async createMemoCard(userId: number, title: string, tags: string[], imageUrls: string[] = []): Promise<number> {
         const client = await this.pool.connect();
         try {
             const result = await client.query(
-                'INSERT INTO memo_cards (user_id, title, tags) VALUES ($1, $2, $3) RETURNING id',
-                [userId, title, tags]
+                'INSERT INTO memo_cards (user_id, title, tags, image_urls) VALUES ($1, $2, $3, $4) RETURNING id',
+                [userId, title, tags, imageUrls]
             );
             return result.rows[0].id;
         } catch (error) {
