@@ -143,8 +143,9 @@ const HomePage: React.FC = () => {
   const [userMemos, setUserMemos] = useState<PresetCardType[]>([]);
   const [dynamicCards, setDynamicCards] = useState<PresetCardType[]>([]);
   const [isLoadingMemos, setIsLoadingMemos] = useState(true);
-  const [activeTab, setActiveTab] = useState<'text' | 'file'>('text');
+  const [activeTab, setActiveTab] = useState<'text' | 'file' | 'youtube'>('text');
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [youtubeUrl, setYoutubeUrl] = useState('');
   const navigate = useNavigate();
   const { logout, username } = useAuth();
   const { theme } = useTheme();
@@ -295,6 +296,59 @@ const HomePage: React.FC = () => {
     }
   };
 
+  const handleYouTubeSubmit = async () => {
+    if (!youtubeUrl.trim()) return;
+    
+    setIsLoading(true);
+    try {
+      // TODO: Implement YouTube analysis API call when backend is ready
+      // For now, create a mock response structure
+      const mockResponse = {
+        memoId: Date.now(),
+        rootNodeId: `youtube-${Date.now()}`,
+        title: `Analysis of YouTube Video`,
+        answer: `YouTube video analyzed: ${youtubeUrl}. Video content analysis will be available once the backend YouTube processing API is implemented.`,
+        followUpQuestions: [
+          "What are the main topics discussed in this video?",
+          "How does this video relate to current trends?",
+          "What actionable insights can be extracted?"
+        ],
+        newFollowUpNodeIds: [],
+        sources: [
+          {
+            title: "YouTube Video",
+            url: youtubeUrl,
+            thumbnail: ""
+          }
+        ],
+        images: []
+      };
+      
+      console.log('YouTube analysis mock response:', mockResponse);
+      
+      // Navigate to explore page with the YouTube analysis result
+      navigate('/explore', { 
+        state: { 
+          searchResult: {
+            response: mockResponse.answer,
+            followUpQuestions: mockResponse.followUpQuestions,
+            contextualQuery: `YouTube: ${youtubeUrl}`,
+            nodeId: mockResponse.rootNodeId,
+            newFollowUpNodeIds: mockResponse.newFollowUpNodeIds,
+            sources: mockResponse.sources,
+            images: mockResponse.images,
+          },
+          query: `YouTube: ${youtubeUrl}`,
+          memoId: mockResponse.memoId,
+          memoTitle: mockResponse.title
+        }
+      });
+    } catch (error) {
+      console.error('YouTube analysis failed:', error);
+      setIsLoading(false);
+    }
+  };
+
   const handleCardClick = async (card: PresetCardType) => {
     try {
       setIsLoading(true);
@@ -394,7 +448,7 @@ const HomePage: React.FC = () => {
             <div className="flex bg-gray-100 dark:bg-gray-800/50 rounded-full p-1">
               <button
                 onClick={() => setActiveTab('text')}
-                className={`px-6 py-2 rounded-full text-sm font-medium transition-all duration-200 ${
+                className={`px-4 py-2 rounded-full text-sm font-medium transition-all duration-200 ${
                   activeTab === 'text'
                     ? 'bg-white dark:bg-gray-700 text-gray-900 dark:text-white shadow-sm'
                     : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'
@@ -404,12 +458,12 @@ const HomePage: React.FC = () => {
                   <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
                   </svg>
-                  <span>Text Search</span>
+                  <span>Text</span>
                 </span>
               </button>
               <button
                 onClick={() => setActiveTab('file')}
-                className={`px-6 py-2 rounded-full text-sm font-medium transition-all duration-200 ${
+                className={`px-4 py-2 rounded-full text-sm font-medium transition-all duration-200 ${
                   activeTab === 'file'
                     ? 'bg-white dark:bg-gray-700 text-gray-900 dark:text-white shadow-sm'
                     : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'
@@ -419,7 +473,22 @@ const HomePage: React.FC = () => {
                   <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
                   </svg>
-                  <span>Upload File</span>
+                  <span>File</span>
+                </span>
+              </button>
+              <button
+                onClick={() => setActiveTab('youtube')}
+                className={`px-4 py-2 rounded-full text-sm font-medium transition-all duration-200 ${
+                  activeTab === 'youtube'
+                    ? 'bg-white dark:bg-gray-700 text-gray-900 dark:text-white shadow-sm'
+                    : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'
+                }`}
+              >
+                <span className="flex items-center space-x-2">
+                  <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
+                    <path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/>
+                  </svg>
+                  <span>YouTube</span>
                 </span>
               </button>
             </div>
@@ -453,7 +522,7 @@ const HomePage: React.FC = () => {
                 </button>
               )}
             </div>
-          ) : (
+          ) : activeTab === 'file' ? (
             <div className="relative w-full">
               <FileUpload
                 onFileSelect={handleFileUpload}
@@ -467,6 +536,33 @@ const HomePage: React.FC = () => {
                     <span className="text-gray-600 dark:text-gray-400">Processing file...</span>
                   </div>
                 </div>
+              )}
+            </div>
+          ) : (
+            <div className="relative w-full group">
+              <div className="absolute -inset-0.5 bg-gradient-to-r from-primary-light/30 via-primary-light/50 to-primary-light/30 dark:from-[#2c2c2c] dark:via-[#3c3c3c] dark:to-[#2c2c2c] rounded-full opacity-30 group-hover:opacity-50 transition duration-1000 group-hover:duration-200 animate-gradient-xy blur-sm"></div>
+              <input
+                type="text"
+                className="w-full px-6 py-4 rounded-full bg-white dark:bg-[#111111] text-gray-800 dark:text-white/90 border border-gray-300 dark:border-white/10 focus:border-primary-light dark:focus:border-white/20 focus:outline-none placeholder-gray-500 dark:placeholder-white/30 shadow-lg backdrop-blur-sm font-light tracking-wide transition-colors duration-300"
+                value={youtubeUrl}
+                onChange={(e: React.ChangeEvent<HTMLInputElement>) => setYoutubeUrl(e.target.value)}
+                onKeyPress={(e: React.KeyboardEvent) => e.key === 'Enter' && handleYouTubeSubmit()}
+                placeholder="Paste YouTube URL here..."
+                disabled={isLoading}
+              />
+              {isLoading ? (
+                <div className="absolute right-4 top-1/2 transform -translate-y-1/2">
+                  <div className="w-5 h-5 border border-gray-400 dark:border-white/20 rounded-full animate-spin border-t-primary-light dark:border-t-white/80"></div>
+                </div>
+              ) : (
+                <button 
+                  onClick={handleYouTubeSubmit}
+                  className="absolute right-3 top-1/2 transform -translate-y-1/2 p-2 rounded-full hover:bg-gray-100 dark:hover:bg-white/5 transition-colors duration-200"
+                >
+                  <svg className="w-5 h-5 text-red-600" fill="currentColor" viewBox="0 0 24 24">
+                    <path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/>
+                  </svg>
+                </button>
               )}
             </div>
           )}

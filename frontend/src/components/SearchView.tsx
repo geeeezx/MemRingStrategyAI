@@ -565,7 +565,7 @@ const SearchView: React.FC = () => {
             contextualQuery: query,
             nodeId: response.rootNodeId,
             newFollowUpNodeIds: response.newFollowUpNodeIds,
-            sources: response.sources,
+          sources: response.sources,
             images: response.images,
           },
           query: query,

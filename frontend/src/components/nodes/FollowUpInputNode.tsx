@@ -15,8 +15,9 @@ const FollowUpInputNode = ({ data, id }: NodeProps<FollowUpInputNodeData>) => {
   const { theme } = useTheme();
   const [followUpQuestion, setFollowUpQuestion] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const [activeTab, setActiveTab] = useState<'text' | 'file'>('text');
+  const [activeTab, setActiveTab] = useState<'text' | 'file' | 'youtube'>('text');
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [youtubeUrl, setYoutubeUrl] = useState('');
 
   const handleTextSubmit = async () => {
     if (!followUpQuestion.trim()) return;
@@ -92,6 +93,46 @@ const FollowUpInputNode = ({ data, id }: NodeProps<FollowUpInputNodeData>) => {
     }
   };
 
+  const handleYouTubeSubmit = async () => {
+    if (!youtubeUrl.trim()) return;
+    
+    setIsLoading(true);
+    try {
+      // TODO: Implement YouTube analysis API call for follow-ups when backend is ready
+      // For now, create a mock response structure
+      const mockResponse = {
+        memoId: Date.now(),
+        rootNodeId: `followup-youtube-${Date.now()}`,
+        title: `Follow-up Analysis of YouTube Video`,
+        answer: `Follow-up YouTube video analyzed: ${youtubeUrl}. This analysis builds on our previous discussion and will be available once the backend YouTube processing API is implemented.`,
+        followUpQuestions: [
+          "How does this video connect to our earlier conversation?",
+          "What new perspectives does this video provide?",
+          "How can we combine these insights with previous findings?"
+        ],
+        newFollowUpNodeIds: [],
+        sources: [
+          {
+            title: "YouTube Video",
+            url: youtubeUrl,
+            thumbnail: ""
+          }
+        ],
+        images: []
+      };
+
+      // Call the onSubmit callback if provided
+      if (data.onSubmit) {
+        data.onSubmit(mockResponse);
+      }
+      
+    } catch (error) {
+      console.error('Failed to submit follow-up YouTube video:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   const handleCancel = () => {
     if (data.onCancel) {
       data.onCancel();
@@ -107,7 +148,9 @@ const FollowUpInputNode = ({ data, id }: NodeProps<FollowUpInputNodeData>) => {
 
   const isSubmitDisabled = activeTab === 'text' 
     ? (!followUpQuestion.trim() || isLoading)
-    : (!selectedFile || isLoading);
+    : activeTab === 'file'
+      ? (!selectedFile || isLoading)
+      : (!youtubeUrl.trim() || isLoading);
 
   return (
     <div className={`group relative rounded-xl shadow-xl min-h-[320px] max-w-[420px] flex flex-col backdrop-blur-sm ${
@@ -142,7 +185,7 @@ const FollowUpInputNode = ({ data, id }: NodeProps<FollowUpInputNodeData>) => {
           }`}>
             <button
               onClick={() => setActiveTab('text')}
-              className={`px-4 py-2 rounded-md text-sm font-medium transition-all duration-200 ${
+              className={`px-3 py-2 rounded-md text-xs font-medium transition-all duration-200 ${
                 activeTab === 'text'
                   ? theme === 'dark'
                     ? 'bg-gray-700 text-white shadow-sm'
@@ -152,7 +195,7 @@ const FollowUpInputNode = ({ data, id }: NodeProps<FollowUpInputNodeData>) => {
                     : 'text-gray-600 hover:text-gray-900'
               }`}
             >
-              <span className="flex items-center space-x-2">
+              <span className="flex items-center space-x-1">
                 <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
                 </svg>
@@ -161,7 +204,7 @@ const FollowUpInputNode = ({ data, id }: NodeProps<FollowUpInputNodeData>) => {
             </button>
             <button
               onClick={() => setActiveTab('file')}
-              className={`px-4 py-2 rounded-md text-sm font-medium transition-all duration-200 ${
+              className={`px-3 py-2 rounded-md text-xs font-medium transition-all duration-200 ${
                 activeTab === 'file'
                   ? theme === 'dark'
                     ? 'bg-gray-700 text-white shadow-sm'
@@ -171,11 +214,30 @@ const FollowUpInputNode = ({ data, id }: NodeProps<FollowUpInputNodeData>) => {
                     : 'text-gray-600 hover:text-gray-900'
               }`}
             >
-              <span className="flex items-center space-x-2">
+              <span className="flex items-center space-x-1">
                 <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
                 </svg>
                 <span>File</span>
+              </span>
+            </button>
+            <button
+              onClick={() => setActiveTab('youtube')}
+              className={`px-3 py-2 rounded-md text-xs font-medium transition-all duration-200 ${
+                activeTab === 'youtube'
+                  ? theme === 'dark'
+                    ? 'bg-gray-700 text-white shadow-sm'
+                    : 'bg-white text-gray-900 shadow-sm'
+                  : theme === 'dark'
+                    ? 'text-gray-400 hover:text-white'
+                    : 'text-gray-600 hover:text-gray-900'
+              }`}
+            >
+              <span className="flex items-center space-x-1">
+                <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 24 24">
+                  <path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/>
+                </svg>
+                <span>YouTube</span>
               </span>
             </button>
           </div>
@@ -198,15 +260,31 @@ const FollowUpInputNode = ({ data, id }: NodeProps<FollowUpInputNodeData>) => {
                 disabled={isLoading}
               />
             </div>
+          ) : activeTab === 'file' ? (
+            <div className="h-full">
+              <FileUpload
+                onFileSelect={handleFileSubmit}
+                disabled={isLoading}
+                className="h-32"
+                compact={true}
+              />
+            </div>
           ) : (
-                         <div className="h-full">
-               <FileUpload
-                 onFileSelect={handleFileSubmit}
-                 disabled={isLoading}
-                 className="h-32"
-                 compact={true}
-               />
-             </div>
+            <div className="h-full">
+              <input
+                type="text"
+                value={youtubeUrl}
+                onChange={(e) => setYoutubeUrl(e.target.value)}
+                onKeyPress={(e) => e.key === 'Enter' && handleYouTubeSubmit()}
+                placeholder="Paste YouTube URL here..."
+                className={`w-full h-12 px-4 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all ${
+                  theme === 'dark'
+                    ? 'bg-[#2a2a2a] border-gray-600 text-white placeholder-gray-400 focus:border-blue-500'
+                    : 'bg-gray-50 border-gray-300 text-gray-800 placeholder-gray-500 focus:border-blue-500 focus:bg-white'
+                }`}
+                disabled={isLoading}
+              />
+            </div>
           )}
         </div>
 
@@ -224,7 +302,7 @@ const FollowUpInputNode = ({ data, id }: NodeProps<FollowUpInputNodeData>) => {
             Cancel
           </button>
           <button
-            onClick={activeTab === 'text' ? handleTextSubmit : undefined}
+            onClick={activeTab === 'text' ? handleTextSubmit : activeTab === 'youtube' ? handleYouTubeSubmit : undefined}
             disabled={isSubmitDisabled}
             className={`px-5 py-2.5 rounded-lg font-medium transition-all duration-200 flex items-center space-x-2 ${
               isSubmitDisabled
