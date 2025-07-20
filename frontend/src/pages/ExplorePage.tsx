@@ -326,7 +326,11 @@ const ExplorePage: React.FC = () => {
   }, []);
 
   const handleNodeClick = async (node: Node) => {
-    if (!node.id.startsWith('question-') || node.data.isExpanded) return;
+    // Handle clicks on question nodes (from search flow) or pending nodes (from tree flow)
+    const isQuestionNode = node.id.startsWith('question-');
+    const isPendingTreeNode = node.type === 'default' && !node.data.isExpanded;
+    
+    if ((!isQuestionNode && !isPendingTreeNode) || node.data.isExpanded) return;
 
     // Check if there are any active requests
     const hasActiveRequests = Object.values(activeRequestRef.current).some(controller => controller !== null);
