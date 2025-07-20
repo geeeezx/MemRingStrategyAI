@@ -505,9 +505,62 @@ const ExplorePage: React.FC = () => {
     navigate('/home');
   };
 
+  // Add a ref to track the last click time per node to prevent rapid clicks
+  const lastClickRef = useRef<Map<string, number>>(new Map());
+  const CLICK_DEBOUNCE_MS = 500; // 500ms debounce
+
   const handleAskFollowUp = (nodeId: string) => {
-    // Create a follow-up input node
-    const followUpNodeId = `followup-input-${nodeId}-${Date.now()}`;
+    console.log('handleAskFollowUp called for nodeId:', nodeId);
+    console.log('Current nodes count:', nodes.length);
+    console.log('All followUpInputNode nodes:', nodes.filter(n => n.type === 'followUpInputNode'));
+    
+    // Debounce: prevent clicks within 500ms
+    const now = Date.now();
+    const lastClick = lastClickRef.current.get(nodeId) || 0;
+    if (now - lastClick < CLICK_DEBOUNCE_MS) {
+      console.log('Debounced click for nodeId:', nodeId);
+      return;
+    }
+    lastClickRef.current.set(nodeId, now);
+    
+    // Check if there's already a follow-up input node for this parent
+    const existingFollowUpNode = nodes.find(n => 
+      n.type === 'followUpInputNode' && 
+      n.data.parentNodeId === nodeId
+    );
+    
+    console.log('Existing follow-up node:', existingFollowUpNode);
+    
+    if (existingFollowUpNode) {
+      // Remove existing follow-up input node and its edge (toggle off)
+      console.log('Removing existing follow-up node');
+      setNodes(prevNodes => prevNodes.filter(n => n.id !== existingFollowUpNode.id));
+      setEdges(prevEdges => prevEdges.filter(e => e.target !== existingFollowUpNode.id));
+      return;
+    }
+    
+    // Always remove any existing follow-up input nodes first (ensure clean state)  
+    setNodes(prevNodes => {
+      const followUpNodes = prevNodes.filter(n => n.type === 'followUpInputNode');
+      const filteredNodes = prevNodes.filter(n => n.type !== 'followUpInputNode');
+      console.log('Removing', followUpNodes.length, 'existing followUpInputNode(s)');
+      console.log('Remaining nodes count:', filteredNodes.length);
+      return filteredNodes;
+    });
+    
+    setEdges(prevEdges => {
+      const filteredEdges = prevEdges.filter(e => 
+        !e.target?.startsWith('followup-input-')
+      );
+      console.log('Removed follow-up edges, remaining count:', filteredEdges.length);
+      return filteredEdges;
+    });
+    
+    // Use setTimeout to ensure state cleanup is complete before creating new node
+    setTimeout(() => {
+      // Create a new follow-up input node (toggle on)
+      const followUpNodeId = `followup-input-${nodeId}-${Date.now()}`;
+      console.log('Creating new follow-up node with ID:', followUpNodeId);
     
     // Find the parent node to position the input node relative to it
     const parentNode = nodes.find(n => n.id === nodeId);
@@ -563,6 +616,7 @@ const ExplorePage: React.FC = () => {
     };
 
     setEdges(prevEdges => [...prevEdges, newEdge]);
+    }, 50); // 50ms delay to ensure state cleanup
   };
 
   const handleLogout = () => {
