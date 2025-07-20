@@ -145,10 +145,12 @@ const HomePage: React.FC = () => {
           })}`,
           tags: memo.tags || [],
           query: memo.title || 'Untitled Memo', // Using title as query for now
-          images: [
-            'https://images.unsplash.com/photo-1516110833967-0b5656ca2673?w=300&h=200&fit=crop',
-            'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=300&h=200&fit=crop'
-          ],
+          images: memo.image_urls && memo.image_urls.length > 0 
+            ? memo.image_urls.slice(0, 2) 
+            : [
+                'https://images.unsplash.com/photo-1516110833967-0b5656ca2673?w=300&h=200&fit=crop',
+                'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=300&h=200&fit=crop'
+              ],
           color: 'from-indigo-500/20 to-blue-500/20'
         }));
         
