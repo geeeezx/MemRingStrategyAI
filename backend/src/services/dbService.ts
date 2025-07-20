@@ -82,7 +82,8 @@ export class DatabaseService {
                 [userId]
             );
             
-            return result.rows.map(row => ({
+            
+            const mappedResult = result.rows.map(row => ({
                 id: row.id,
                 user_id: row.user_id,
                 title: row.title,
@@ -91,6 +92,9 @@ export class DatabaseService {
                 created_at: row.created_at,
                 updated_at: row.updated_at
             }));
+            
+            
+            return mappedResult;
         } finally {
             client.release();
         }
@@ -317,9 +321,10 @@ export class DatabaseService {
     async createMemoCard(userId: number, title: string, tags: string[], imageUrls: string[] = []): Promise<number> {
         const client = await this.pool.connect();
         try {
+            const storedImageUrls: string[] = (imageUrls.length > 2)? imageUrls.slice(0, 2): imageUrls;
             const result = await client.query(
                 'INSERT INTO memo_cards (user_id, title, tags, image_urls) VALUES ($1, $2, $3, $4) RETURNING id',
-                [userId, title, tags, imageUrls]
+                [userId, title, tags, storedImageUrls]
             );
             return result.rows[0].id;
         } catch (error) {
