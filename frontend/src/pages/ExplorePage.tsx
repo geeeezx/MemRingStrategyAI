@@ -100,6 +100,8 @@ interface SearchResponse {
   sources: Source[];
   images: ImageData[];
   contextualQuery: string;
+  nodeId: string;
+  newFollowUpNodeIds: string[];
 }
 
 interface ConversationMessage {
@@ -234,7 +236,7 @@ const ExplorePage: React.FC = () => {
     }
 
     const mainNode: Node = {
-      id: 'main',
+      id: searchResult.nodeId,
       type: 'mainNode',
       data: {
         label: searchResult.contextualQuery || initialQuery,
@@ -242,7 +244,7 @@ const ExplorePage: React.FC = () => {
         images: searchResult.images?.map((img: ImageData) => img.url),
         sources: searchResult.sources,
         isExpanded: true,
-        onAskFollowUp: () => handleAskFollowUp('main')
+        onAskFollowUp: () => handleAskFollowUp(searchResult.nodeId)
       },
       position: { x: 0, y: 0 },
       style: {
@@ -254,7 +256,7 @@ const ExplorePage: React.FC = () => {
     };
 
     const followUpNodes: Node[] = searchResult.followUpQuestions.map((question: string, index: number) => ({
-      id: `question-${index}`,
+      id: searchResult.newFollowUpNodeIds[index],
       type: 'default',
       data: { 
         label: question,
@@ -277,10 +279,10 @@ const ExplorePage: React.FC = () => {
       }
     }));
 
-    const followUpEdges: Edge[] = followUpNodes.map((_, index) => ({
-      id: `edge-${index}`,
-      source: 'main',
-      target: `question-${index}`,
+    const followUpEdges: Edge[] = followUpNodes.map((node, index) => ({
+      id: `edge-${searchResult.nodeId}-${node.id}`,
+      source: searchResult.nodeId,
+      target: node.id,
       type: 'custom',
       animated: false,
       data: { isSuggestion: true }, // These are suggestion nodes
@@ -326,11 +328,10 @@ const ExplorePage: React.FC = () => {
   }, []);
 
   const handleNodeClick = async (node: Node) => {
-    // Handle clicks on question nodes (from search flow) or pending nodes (from tree flow)
-    const isQuestionNode = node.id.startsWith('question-');
-    const isPendingTreeNode = node.type === 'default' && !node.data.isExpanded;
+    // Handle clicks on pending nodes (both search flow and tree flow use real backend IDs now)
+    const isPendingNode = node.type === 'default' && !node.data.isExpanded;
     
-    if ((!isQuestionNode && !isPendingTreeNode) || node.data.isExpanded) return;
+    if (!isPendingNode || node.data.isExpanded) return;
 
     // Check if there are any active requests
     const hasActiveRequests = Object.values(activeRequestRef.current).some(controller => controller !== null);
@@ -423,9 +424,8 @@ const ExplorePage: React.FC = () => {
           );
 
           const newFollowUpNodes: Node[] = response.followUpQuestions.map((question: string, index: number) => {
-            const uniqueId = `question-${node.id}-${Date.now()}-${Math.random().toString(36).substr(2, 9)}-${index}`;
             return {
-              id: uniqueId,
+              id: response.newFollowUpNodeIds[index],
               type: 'default',
               data: { 
                 label: question,
