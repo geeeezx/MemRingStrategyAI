@@ -32,9 +32,10 @@ const getLayoutedElements = (nodes: Node[], edges: Edge[]) => {
   allNodes.forEach(node => dagreGraph.removeNode(node));
 
   nodes.forEach((node) => {
+    const isSmallNode = node.type === 'default';
     dagreGraph.setNode(node.id, { 
-      width: nodeWidth,
-      height: nodeHeight 
+      width: isSmallNode ? questionNodeWidth : nodeWidth,
+      height: isSmallNode ? questionNodeHeight : nodeHeight 
     });
   });
 
@@ -61,11 +62,15 @@ const getLayoutedElements = (nodes: Node[], edges: Edge[]) => {
 
   const newNodes = nodes.map((node) => {
     const nodeWithPosition = dagreGraph.node(node.id);
+    const isSmallNode = node.type === 'default';
+    const width = isSmallNode ? questionNodeWidth : nodeWidth;
+    const height = isSmallNode ? questionNodeHeight : nodeHeight;
+    
     return {
       ...node,
       position: {
-        x: nodeWithPosition.x - nodeWidth / 2,
-        y: nodeWithPosition.y - nodeHeight / 2
+        x: nodeWithPosition.x - width / 2,
+        y: nodeWithPosition.y - height / 2
       },
       targetPosition: Position.Left,
       sourcePosition: Position.Right
@@ -131,24 +136,37 @@ const ExplorePage: React.FC = () => {
         
         // Process each node in the tree
         Object.values(nodesMap).forEach((nodeData: any) => {
+          // Determine if this is a pending or completed node
+          const isPending = nodeData.status === 'pending' || !nodeData.answer;
+          
           const node: Node = {
             id: nodeData.id,
-            type: 'mainNode',
+            type: isPending ? 'default' : 'mainNode',
             data: {
               label: nodeData.question || memoTitle || 'Node',
-              content: nodeData.answer || '',
+              content: isPending ? '' : nodeData.answer,
               images: nodeData.imageUrls || [],
               sources: [], // Backend doesn't provide sources in this format
-              isExpanded: true,
+              isExpanded: !isPending,
               onAskFollowUp: () => handleAskFollowUp(nodeData.id)
             },
             position: { x: 0, y: 0 },
-            style: {
-              width: nodeWidth,
-              minHeight: '500px',
-              background: theme === 'dark' ? '#1a1a1a' : '#ffffff',
-              opacity: 1
-            }
+                          style: isPending ? {
+                width: questionNodeWidth,
+                background: theme === 'dark' ? '#1a1a1a' : '#ffffff',
+                color: theme === 'dark' ? '#fff' : '#000',
+                border: theme === 'dark' ? '1px solid #333' : '1px solid #e5e5e5',
+                borderRadius: '8px',
+                fontSize: '14px',
+                textAlign: 'left',
+                boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)',
+                cursor: 'pointer'
+              } : {
+                width: nodeWidth,
+                minHeight: '500px',
+                background: theme === 'dark' ? '#1a1a1a' : '#ffffff',
+                opacity: 1
+              }
           };
           treeNodes.push(node);
 
@@ -161,6 +179,7 @@ const ExplorePage: React.FC = () => {
                 target: nodeData.id,
                 type: 'custom',
                 animated: false,
+                data: { isSuggestion: isPending }, // Mark pending nodes as suggestions
                 markerEnd: {
                   type: MarkerType.ArrowClosed,
                   color: theme === 'dark' ? '#ffffff' : 'rgba(0, 0, 0, 0.6)'
@@ -355,7 +374,7 @@ const ExplorePage: React.FC = () => {
       const response = await searchRabbitHole({
         query: questionText,
         userId: 1, // Default user ID for now
-        memoId: 1, // Default memo ID for now
+        memoId: memoId || 1, // Use memoId from state or fallback to 1
         nodeId: node.id, // Use the node ID as the nodeId
         previousConversation: conversationHistory,
         concept: currentConcept,

@@ -556,54 +556,25 @@ const SearchView: React.FC = () => {
       
       console.log('CreateMemo response:', response);
 
-      // Navigate to explore page with the created memo data
+      // Navigate to explore page with search results (transform createMemo response to searchResult format)
       navigate('/explore', { 
         state: { 
-          treeData: {
-            nodes: {
-              [response.rootNodeId]: {
-                id: response.rootNodeId,
-                type: 'node',
-                question: query,
-                answer: response.answer,
-                parentId: [],
-                children: response.newFollowUpNodeIds,
-                status: 'completed',
-                imageUrls: response.imageUrls,
-                createdAt: new Date().toISOString()
-              },
-              // Add follow-up nodes as pending nodes
-              ...response.newFollowUpNodeIds.reduce((acc: any, nodeId: string, index: number) => {
-                acc[nodeId] = {
-                  id: nodeId,
-                  type: 'node',
-                  question: response.followUpQuestions[index],
-                  answer: null,
-                  parentId: [response.rootNodeId],
-                  children: [],
-                  status: 'pending',
-                  imageUrls: [],
-                  createdAt: new Date().toISOString()
-                };
-                return acc;
-              }, {})
-            },
-            rootIds: [response.rootNodeId],
-            nextNodeId: (parseInt(response.rootNodeId) + response.newFollowUpNodeIds.length + 1).toString(),
-            metadata: {
-              totalNodes: 1 + response.newFollowUpNodeIds.length,
-              maxDepth: 1,
-              lastUpdated: new Date().toISOString()
-            }
+          searchResult: {
+            response: response.answer,
+            followUpQuestions: response.followUpQuestions,
+            contextualQuery: query,
+            nodeId: response.rootNodeId,
+            newFollowUpNodeIds: response.newFollowUpNodeIds,
+            sources: response.sources,
+            images: response.images,
           },
-          memoTitle: response.title,
-          memoId: response.memoId
+          query: query,
+          memoId: response.memoId,
+          memoTitle: response.title
         }
       });
     } catch (error) {
       console.error('CreateMemo failed:', error);
-      // Show error to user
-      alert('Failed to create memo: ' + (error as Error).message);
     } finally {
       setIsLoading(false);
     }
