@@ -22,4 +22,9 @@ export const searchRabbitHole = async (params: {
     return response.data;
 };
 
+export const getUserMemos = async (userId: number) => {
+    const response = await api.get(`/rabbitholes/memos/${userId}`);
+    return response.data;
+};
+
 export default api; 

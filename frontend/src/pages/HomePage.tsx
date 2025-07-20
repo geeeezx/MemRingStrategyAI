@@ -1,10 +1,10 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
 import ThemeToggle from '../components/ThemeToggle';
 import PresetCard from '../components/PresetCard';
-import { searchRabbitHole } from '../services/api';
+import { searchRabbitHole, getUserMemos } from '../services/api';
 import { PresetCard as PresetCardType } from '../types/card';
 import { createCardFromChatMessage } from '../utils/cardUtils';
 import '../styles/search.css';
@@ -116,13 +116,57 @@ const COMMUNITY_CARDS: PresetCardType[] = [
 const HomePage: React.FC = () => {
   const [query, setQuery] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [userMemos, setUserMemos] = useState<PresetCardType[]>([]);
   const [dynamicCards, setDynamicCards] = useState<PresetCardType[]>([]);
+  const [isLoadingMemos, setIsLoadingMemos] = useState(true);
   const navigate = useNavigate();
   const { logout, username } = useAuth();
   const { theme } = useTheme();
 
+  // Load user memos from backend
+  useEffect(() => {
+    const loadUserMemos = async () => {
+      try {
+        setIsLoadingMemos(true);
+        const memos = await getUserMemos(1); // Using userId 1 for now
+        console.log('Loaded memos from backend:', memos);
+        
+        // Transform backend memo data to frontend card format
+        const transformedMemos: PresetCardType[] = memos.map((memo: any) => ({
+          id: memo.id.toString(),
+          title: memo.title || 'Untitled Memo',
+          date: `Last updated ${new Date(memo.updated_at).toLocaleDateString('en-US', {
+            month: 'short',
+            day: 'numeric'
+          })} at ${new Date(memo.updated_at).toLocaleTimeString('en-US', {
+            hour: 'numeric',
+            minute: '2-digit',
+            hour12: true
+          })}`,
+          tags: memo.tags || [],
+          query: memo.title || 'Untitled Memo', // Using title as query for now
+          images: [
+            'https://images.unsplash.com/photo-1516110833967-0b5656ca2673?w=300&h=200&fit=crop',
+            'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=300&h=200&fit=crop'
+          ],
+          color: 'from-indigo-500/20 to-blue-500/20'
+        }));
+        
+        setUserMemos(transformedMemos);
+      } catch (error) {
+        console.error('Failed to load user memos:', error);
+        // Fallback to hardcoded memos if API fails
+        setUserMemos(USER_CARDS);
+      } finally {
+        setIsLoadingMemos(false);
+      }
+    };
+
+    loadUserMemos();
+  }, []);
+
   // 合并用户卡片和动态卡片
-  const allUserCards = [...USER_CARDS, ...dynamicCards];
+  const allUserCards = [...userMemos, ...dynamicCards];
 
   const handleSearch = async () => {
     if (!query.trim()) return;
@@ -265,16 +309,30 @@ const HomePage: React.FC = () => {
             </span>
           </div>
           
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-            {allUserCards.map((card, index) => (
-              <PresetCard
-                key={card.id}
-                card={card}
-                onClick={handleCardClick}
-                index={index}
-              />
-            ))}
-          </div>
+          {isLoadingMemos ? (
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+              {[1, 2, 3].map((index) => (
+                <div key={index} className="relative rounded-lg shadow-lg min-h-[320px] bg-gray-200 dark:bg-gray-800 animate-pulse">
+                  <div className="p-4">
+                    <div className="h-6 bg-gray-300 dark:bg-gray-700 rounded mb-3"></div>
+                    <div className="h-4 bg-gray-300 dark:bg-gray-700 rounded mb-2"></div>
+                    <div className="h-4 bg-gray-300 dark:bg-gray-700 rounded w-2/3"></div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+              {allUserCards.map((card, index) => (
+                <PresetCard
+                  key={card.id}
+                  card={card}
+                  onClick={handleCardClick}
+                  index={index}
+                />
+              ))}
+            </div>
+          )}
         </div>
 
         {/* 社区卡片 */}
