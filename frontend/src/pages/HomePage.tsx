@@ -4,10 +4,33 @@ import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
 import ThemeToggle from '../components/ThemeToggle';
 import PresetCard from '../components/PresetCard';
-import { searchRabbitHole, getUserMemos, getConversationTree } from '../services/api';
+import { createMemo, getUserMemos, getConversationTree } from '../services/api';
 import { PresetCard as PresetCardType } from '../types/card';
 import { createCardFromChatMessage } from '../utils/cardUtils';
 import '../styles/search.css';
+
+interface CreateMemoResponse {
+  memoId: number;
+  title: string;
+  tags: string[];
+  rootNodeId: string;
+  answer: string;
+  followUpQuestions: string[];
+  newFollowUpNodeIds: string[];
+  imageUrls: string[];
+  sources: Array<{
+    title: string;
+    url: string;
+    uri: string;
+    author: string;
+    image: string;
+  }>;
+  images: Array<{
+    url: string;
+    thumbnail: string;
+    description: string;
+  }>;
+}
 
 // 用户创建的卡片数据
 const USER_CARDS: PresetCardType[] = [
@@ -176,25 +199,63 @@ const HomePage: React.FC = () => {
     setIsLoading(true);
     
     try {
-      const response = await searchRabbitHole({
+      console.log('HomePage: Starting createMemo with query:', query.trim());
+      
+      const response: CreateMemoResponse = await createMemo({
         query: query.trim(),
         userId: 1, // Default user ID for now
-        memoId: 1, // Default memo ID for now
-        nodeId: 'main', // Use 'main' as the node ID for the initial search
-        previousConversation: [],
-        concept: '',
-        followUpMode: 'expansive'
+        provider: 'gemini'
       });
 
-      // Navigate to explore page with search results
+      console.log('HomePage: CreateMemo response:', response);
+
+      // Navigate to explore page with the created memo data
       navigate('/explore', { 
         state: { 
-          searchResult: response,
-          query: query.trim()
-        } 
+          treeData: {
+            nodes: {
+              [response.rootNodeId]: {
+                id: response.rootNodeId,
+                type: 'node',
+                question: query.trim(),
+                answer: response.answer,
+                parentId: [],
+                children: response.newFollowUpNodeIds,
+                status: 'completed',
+                imageUrls: response.imageUrls,
+                createdAt: new Date().toISOString()
+              },
+              // Add follow-up nodes as pending nodes
+              ...response.newFollowUpNodeIds.reduce((acc: any, nodeId: string, index: number) => {
+                acc[nodeId] = {
+                  id: nodeId,
+                  type: 'node',
+                  question: response.followUpQuestions[index],
+                  answer: null,
+                  parentId: [response.rootNodeId],
+                  children: [],
+                  status: 'pending',
+                  imageUrls: [],
+                  createdAt: new Date().toISOString()
+                };
+                return acc;
+              }, {})
+            },
+            rootIds: [response.rootNodeId],
+            nextNodeId: (parseInt(response.rootNodeId) + response.newFollowUpNodeIds.length + 1).toString(),
+            metadata: {
+              totalNodes: 1 + response.newFollowUpNodeIds.length,
+              maxDepth: 1,
+              lastUpdated: new Date().toISOString()
+            }
+          },
+          memoTitle: response.title,
+          memoId: response.memoId
+        }
       });
     } catch (error) {
-      console.error('Search failed:', error);
+      console.error('CreateMemo failed:', error);
+      alert('Failed to create memo: ' + (error as Error).message);
       setIsLoading(false);
     }
   };
